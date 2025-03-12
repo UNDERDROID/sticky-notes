@@ -49,11 +49,46 @@ button:hover {
     background-color: #45a049;
 }
 
+.title{
+    color: #6f6f6f;
+    font-weight: 800;
+}
 .color-picker select {
     padding: 6px;
     border-radius: 4px;
     border: 1px solid #ddd;
 }
+#add-container {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-height: 290px;
+    border-bottom: 1px solid #ddd;
+    margin: auto;
+    position: relative;
+}
+
+.button-container{
+display: flex;
+gap: 10px;
+position: absolute;
+bottom: 10px;
+left: 0;
+}
+
+.save-note {
+    height: 32px;
+    width: 90px;
+    background-color: #4CAF50;
+}
+
+.cancel-note{
+    width: 80px;
+    height: 32px;
+    background-color: #7d7474;
+}
+
 
 #notes-container {
     display: flex;
@@ -65,7 +100,6 @@ button:hover {
 
 /* Sticky Note Styles */
 .sticky-note {
-    position: absolute;
     width: 200px;
     min-height: 200px;
     padding: 15px;
@@ -106,6 +140,7 @@ button:hover {
     font-size: 16px;
     font-weight: 600;
     width: 80%;
+    resize: none;
     border: none;
     justify-content: flex-start;
 }
@@ -139,6 +174,8 @@ button:hover {
     border: 1px solid #ddd;
     background: white;
 }
+
+
 
 /* Note Colors */
 .yellow {
