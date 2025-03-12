@@ -66,7 +66,19 @@ button:hover {
     min-height: 290px;
     border-bottom: 1px solid #ddd;
     margin: auto;
+    margin-bottom: 30px;
     position: relative;
+    padding-bottom: 50px;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
+}
+
+#add-container.hidden {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    border-bottom: none;
 }
 
 .button-container{
@@ -95,7 +107,7 @@ left: 0;
     flex-wrap: wrap;
     gap: 20px;
     position: relative;
-    min-height: 400px;
+    min-height: 500px;
 }
 
 /* Sticky Note Styles */

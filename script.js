@@ -3,6 +3,7 @@ const $addNoteBtn = $('#add-note');
 const $defaultColorSelect = $('#default-color');
 const $notesContainer = $('#notes-container');
 const $addContainer = $('#add-container');
+const $colorPicker = $('.color-picker')
 
 // State
 let notes = [];
@@ -55,10 +56,15 @@ function previewNote(){
             <textarea class="sticky-note-content" placeholder="Content"></textarea>
         </div>
         <div class="button-container">
-        <button class="save-note">Add Note</button>
-        <button class="cancel-note">Cancel</button>
+            <button class="save-note">Add Note</button>
+            <button class="cancel-note">Cancel</button>
         </div>
         `);
+
+        $colorPicker.find('#default-color').on('change', function(){
+            previewNoteData.color = $(this).val();
+            previewNote();
+        })
 
         $addContainer.find('.sticky-note-title').on('input', function(){
             previewNoteData.title = $(this).val();
