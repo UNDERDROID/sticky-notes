@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sticky Notes +</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <header>
+        <div class="controls">
+            <button id="add-note">Add Note</button>
+            <div class="color-picker">
+                <span>Default Color</span>
+                <select id="default-color">
+                    <option value="yellow">Yellow</option>
+                    <option value="beige">Beige</option>
+                    <option value="green">Green</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    
+  <div id="notes-container">
+    
+  </div>
+  </div>
+
+  <script src="db.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
