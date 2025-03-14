@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "spectrum-colorpicker": "^1.8.1",
+    "sweetalert2": "^11.17.2"
+  }
+}

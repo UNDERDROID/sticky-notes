@@ -11,18 +11,23 @@ body {
 
 .app-container {
     width: 100%;
-    max-width: 1200px;
+    max-width: 100%;
     margin: 0 auto;
     padding: 20px;
 }
 
 header {
+    width: 100vw;
+    left: 0;
+    top: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
     margin-bottom: 30px;
     padding-bottom: 10px;
     border-bottom: 1px solid #ddd;
+    z-index: 1001;
 }
 
 h1 {
@@ -53,45 +58,43 @@ button:hover {
     color: #6f6f6f;
     font-weight: 800;
 }
-.color-picker select {
-    padding: 6px;
-    border-radius: 4px;
-    border: 1px solid #ddd;
-}
+
 #add-container {
+    position: fixed;
+    top: 63px;
+    left: 0;
+    width: 250px;
+    height: 100vh;
     display: flex;
     flex-direction: column;
-    flex-wrap: wrap;
-    gap: 10px;
-    min-height: 290px;
-    border-bottom: 1px solid #ddd;
-    margin: auto;
-    margin-bottom: 30px;
-    position: relative;
-    padding-bottom: 50px;
-    overflow: hidden;
-    transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
-}
+    border-right: 1px solid #ddd;
+    padding: 20px;
+    z-index: 1000;
+    background-color: #f5f5f5;
+    overflow-y: auto;
 
-#add-container.hidden {
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    opacity: 0;
-    border-bottom: none;
+}
+.body-container{
+    margin-left: 320px;
+    padding-left: 20px;
+    display: flex;
 }
 
 .button-container{
-display: flex;
-gap: 10px;
-position: absolute;
-bottom: 10px;
-left: 0;
+    flex-direction: column;
+    padding-top: 10px;
+    gap: 10px;
+    margin-top: 240px;
+}
+.color-picker{
+    padding: 10px;
+    margin-bottom: 15px;
 }
 
 .save-note {
     height: 32px;
     width: 90px;
+    margin-top: 5px;
     background-color: #4CAF50;
 }
 
@@ -103,6 +106,7 @@ left: 0;
 
 
 #notes-container {
+    flex: 1;
     display: flex;
     flex-wrap: wrap;
     gap: 20px;
@@ -189,15 +193,3 @@ left: 0;
 
 
 
-/* Note Colors */
-.yellow {
-    background-color: #fff9c4;
-}
-
-.beige {
-    background-color: #D9B99B;
-}
-
-.green {
-    background-color: #c8e6c9;
-}

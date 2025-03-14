@@ -1,9 +1,10 @@
+
+
+
 // DOM Elements using jQuery
-const $addNoteBtn = $('#add-note');
-const $defaultColorSelect = $('#default-color');
 const $notesContainer = $('#notes-container');
 const $addContainer = $('#add-container');
-const $colorPicker = $('.color-picker')
+
 
 // State
 let notes = [];
@@ -17,11 +18,10 @@ async function initApp() {
         
         // Load saved notes
         await loadNotes();
+
+        setupPreviewNote();
         
-        $('#add-container').hide();
-        // Set up event listeners
-        $addNoteBtn.on('click', previewNote);
-        
+
         $notesContainer.droppable();
     } catch (error) {
         console.error('Failed to initialize app:', error);
@@ -40,31 +40,77 @@ async function loadNotes() {
     }   
 }
 
-function previewNote(){
-    $addContainer.show();
-
+function setupPreviewNote(){
     previewNoteData = {
         title: '',
         content: '',
-        color: $defaultColorSelect.val()
+        cardcolor: '#fff9c4',
+        textcolor: '#000000'
     }
+    previewNote();
 
-    $addContainer.html(`<div class="sticky-note ${previewNoteData.color}" id="preview-note">
+}
+
+function previewNote(){
+
+
+    $addContainer.html(`<div class="sticky-note" id="preview-note" style="background-color: ${previewNoteData.cardcolor}">
             <div class="sticky-note-header">
-                <textarea class="sticky-note-title" placeholder="Title"></textarea>
+                <textarea class="sticky-note-title" placeholder="Title" style="color: ${previewNoteData.textcolor}"></textarea>
             </div>
             <textarea class="sticky-note-content" placeholder="Content"></textarea>
         </div>
         <div class="button-container">
+            <input type="text" id="card-color-picker" class="color-picker">
+            <label for="card-color-picker">Card Color</label><br>
+     
+            <input type="text" id="text-color-picker" class="color-picker">
+            <label for="card-color-picker">Text Color</label><br>
+
             <button class="save-note">Add Note</button>
-            <button class="cancel-note">Cancel</button>
         </div>
         `);
 
-        $colorPicker.find('#default-color').on('change', function(){
-            previewNoteData.color = $(this).val();
-            previewNote();
-        })
+    
+
+        $addContainer.find('.sticky-note-title').val(previewNoteData.title);
+        $addContainer.find('.sticky-note-content').val(previewNoteData.content);
+
+        $('#card-color-picker').spectrum({
+            color: previewNoteData.cardcolor,
+            showInput: true,
+            showInitial: true,
+            showPalette: true,
+            showAlpha: false,
+            preferredFormat: "hex",
+            palette:[
+                ['#fff9c4', '#bbdefb', '#c8e6c9'],
+                ['#f8bbd0', '#e1bee7', '#ffe0b2'],
+                ['#ffccbc', '#d7ccc8', '#cfd8dc']
+            ],
+            change: function(color){
+                previewNoteData.cardcolor = color.toHexString();
+                $('#preview-note').css('background-color', previewNoteData.cardcolor);
+            }
+        });
+
+        $('#text-color-picker').spectrum({
+            color: previewNoteData.textcolor,
+            showInput: true,
+            showInitial: true,
+            showPalette: true,
+            showAlpha: false,
+            preferredFormat: "hex",
+            palette:[
+                ['#fff9c4', '#bbdefb', '#c8e6c9'],
+                ['#f8bbd0', '#e1bee7', '#ffe0b2'],
+                ['#ffccbc', '#d7ccc8', '#cfd8dc']
+            ],
+            change: function(color){
+                previewNoteData.textcolor = color.toHexString();
+                $('.sticky-note-title, .sticky-note-content').css('color', previewNoteData.textcolor);
+            }
+        });
 
         $addContainer.find('.sticky-note-title').on('input', function(){
             previewNoteData.title = $(this).val();
@@ -75,24 +121,22 @@ function previewNote(){
         })
 
         $addContainer.find('.save-note').on('click', function(){
+            if(previewNoteData.title.trim()!=='' && previewNoteData.content.trim()!==''){
             addNewNote(previewNoteData);
-
-            if(addNewNote){
-            previewNoteData = null;
-            $addContainer.hide();
+           setupPreviewNote();
+        }else{
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops!',
+                text: 'Title and Content must not be empty',
+                confirmButtonText: 'OK',
+            })
         }
         })
 
-        $addContainer.find('.cancel-note').on('click', function(){
-            previewNoteData = null;
-            $addContainer.hide();
-        })
 }
 
 function addNewNote(note){
-    $('#add-container').show();
-    const color = $defaultColorSelect.val();
-    console.log(color);
     const noteData = {
         id: Date.now().toString(),
         title: note.title,
@@ -101,22 +145,24 @@ function addNewNote(note){
             left: Math.random() * ($notesContainer.width() - 220) + 10,
             top: Math.random() * (400 - 220) + 10
         },
-        color: note.color
+        cardcolor: note.cardcolor,
+        textcolor: note.textcolor
     }
     notes.push(noteData);
-    saveNote(noteData).then(()=>{
+    saveNote(noteData)
+    .then(()=>{
         renderNote(noteData);
     })
 }
 
 function renderNote(note){
     const $noteElement = $(`
-        <div class="sticky-note ${note.color}" id="note-${note.id}">
+        <div class="sticky-note" id="note-${note.id}" style="background-color: ${note.cardcolor}">
         <div class="sticky-note-header">
-        <textarea class="sticky-note-title" data-id="${note.id}" placeholder="Title">${note.title}</textarea>
+        <textarea class="sticky-note-title" data-id="${note.id}" placeholder="Title" style="color: ${note.textcolor}">${note.title}</textarea>
         <button class="delete-note" data-id="${note.id}">x</button>
         </div>
-        <textarea class="sticky-note-content" placeholder="content" data-id="${note.id}">${note.content}</textarea>
+        <textarea class="sticky-note-content" placeholder="content" data-id="${note.id}" style="color: ${note.textcolor}">${note.content}</textarea>
         </div>
         `)
         
