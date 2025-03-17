@@ -1,6 +1,5 @@
 
 
-
 // DOM Elements using jQuery
 const $notesContainer = $('#notes-container');
 const $addContainer = $('#add-container');
@@ -9,6 +8,12 @@ const $addContainer = $('#add-container');
 // State
 let notes = [];
 let previewNoteData = null;
+let colorPalette = [
+    ['#fff9c4', '#bbdefb', '#c8e6c9'],
+    ['#f8bbd0', '#e1bee7', '#ffe0b2'],
+    ['#ffccbc', '#d7ccc8', '#cfd8dc']
+];
+const debounceTimers = {};
 
 // Initialize the application
 async function initApp() {
@@ -30,7 +35,10 @@ async function initApp() {
 
 async function loadNotes() {
     try{
-        notes = await getAllNotes();
+        const response = await fetch('http://localhost:3000/notes');
+        notes = await response.json();
+         console.log(notes);
+        // notes = await getAllNotes();
     
     $.each(notes, (index, note)=>{
         renderNote(note);
@@ -83,11 +91,7 @@ function previewNote(){
             showPalette: true,
             showAlpha: false,
             preferredFormat: "hex",
-            palette:[
-                ['#fff9c4', '#bbdefb', '#c8e6c9'],
-                ['#f8bbd0', '#e1bee7', '#ffe0b2'],
-                ['#ffccbc', '#d7ccc8', '#cfd8dc']
-            ],
+            palette: colorPalette,
             change: function(color){
                 previewNoteData.cardcolor = color.toHexString();
                 $('#preview-note').css('background-color', previewNoteData.cardcolor);
@@ -101,11 +105,7 @@ function previewNote(){
             showPalette: true,
             showAlpha: false,
             preferredFormat: "hex",
-            palette:[
-                ['#fff9c4', '#bbdefb', '#c8e6c9'],
-                ['#f8bbd0', '#e1bee7', '#ffe0b2'],
-                ['#ffccbc', '#d7ccc8', '#cfd8dc']
-            ],
+            palette: colorPalette,
             change: function(color){
                 previewNoteData.textcolor = color.toHexString();
                 $('.sticky-note-title, .sticky-note-content').css('color', previewNoteData.textcolor);
@@ -136,23 +136,36 @@ function previewNote(){
 
 }
 
-function addNewNote(note){
+async function addNewNote(note){
     const noteData = {
         id: Date.now().toString(),
         title: note.title,
         content: note.content,
-        position: {
-            left: Math.random() * ($notesContainer.width() - 220) + 10,
-            top: Math.random() * (400 - 220) + 10
-        },
+        positionLeft: Math.random() * ($notesContainer.width() - 220) + 10,
+        positionTop: Math.random() * (400 - 220) + 10,
         cardcolor: note.cardcolor,
         textcolor: note.textcolor
     }
-    notes.push(noteData);
-    saveNote(noteData)
-    .then(()=>{
-        renderNote(noteData);
-    })
+    
+    try{
+        const response = await fetch('http://localhost:3000/notes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(noteData)
+        });
+        if(!response.ok){
+            throw new Error(`Failed to save note: ${response.statusText}`);
+        }
+        const savedNote = await response.json();
+        
+        notes.push(savedNote);
+        console.log('Saved Note:', savedNote);
+        renderNote(savedNote);
+    }catch(error){
+        console.log('Error saving note:', error);
+    }
 }
 
 function renderNote(note){
@@ -167,8 +180,8 @@ function renderNote(note){
         `)
         
         $noteElement.css({
-            'left': `${note.position.left}px`,
-            'top': `${note.position.top}px`
+            'left': `${note.positionLeft}px`,
+            'top': `${note.positionTop}px`
         });
 
         $notesContainer.append($noteElement);
@@ -198,50 +211,95 @@ function renderNote(note){
         })
 }
 
-function updateNoteTitle(id, title){
-    const noteIndex = notes.findIndex(note => note.id === id)
+async function updateNoteTitle(id, newTitle){
+    const timerKey = `${id}_title`;
+    const noteIndex = notes.findIndex(note => note.id === id);
+
     if(noteIndex!==-1){
-        notes[noteIndex].title=title;
-        saveNote(notes[noteIndex]);
+        notes[noteIndex].title=newTitle;
+
+        //Clear any existing timeouts for this note
+        if(debounceTimers[timerKey]){
+            clearTimeout(debounceTimers[timerKey]);
+        }
+
+        debounceTimers[timerKey] = setTimeout(async() => {
+            try{
+        const response = await fetch(`http://localhost:3000/notes/title/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({title: newTitle})
+        })
+        if(!response.ok){
+            throw new Error(`Failed to update title: ${response.statusText}`);
+        }
+        delete debounceTimers[timerKey];
+
+    }catch(error){
+        console.error('Error updating title:', error);
     }
+}, 5000);
+}
 }
 
-function updateNoteContent(id, content){
+function updateNoteContent(id, newContent){
+const timerKey = `${id}_content`;
 const noteIndex = notes.findIndex(note => note.id === id);
+
 if(noteIndex!==-1){
-    notes[noteIndex].content=content;
-    saveNote(notes[noteIndex]);
+    notes[noteIndex].content=newContent;
+
+    if(debounceTimers[timerKey]){
+        clearTimeout(debounceTimers[timerKey]);
     }
+
+    debounceTimers[timerKey] = setTimeout(async()=>{
+        try{
+            const response = await fetch(`http://localhost:3000/notes/content/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-type': 'application/json'
+                },
+                body: JSON.stringify({content: newContent})
+            });
+
+            if(!response.ok){
+                throw new Error(`Failed to update note: ${response.statusText}`);
+            }
+            delete debounceTimers[timerKey];
+        }catch(error){
+            console.error('Error updating content', error);
+        }
+    }, 5000);
+}
 }
 
 
 function updateNotePosition(id, left, top){
  const noteIndex = notes.findIndex(note => note.id === id);
  if(noteIndex!==-1){
-    notes[noteIndex].position.left = left;
-    notes[noteIndex].position.top = top;
+    notes[noteIndex].positionLeft = left;
+    notes[noteIndex].positionTop = top;
     saveNote(notes[noteIndex]);
  }   
 }
 
-function removeNote(id){
-    console.log('Attempting to remove note');
-    console.log(notes);
-    const noteId=id.toString();
-    const noteIndex = notes.findIndex(note => note.id === noteId);
-    console.log('Note index in array:', noteIndex);
-
-    if(noteIndex!==-1){
-        notes.splice(noteIndex, 1);
-        deleteNote(noteId).then(()=>{
-            console.log('Note removed from DB, now removing from DOM:', noteId);
-            $(`#note-${id}`).remove();
-        }).catch(error => {
-            console.error('Error in delete note', error);
-        });
-    }else{
-        console.error('Note not found in array:',id);
-    }
+async function removeNote(id){
+try{
+ const response = await fetch(`http://localhost:3000/notes/${id}`,{
+    method: 'DELETE'
+ });
+ if(!response.ok) throw new Error('Failed to delete note')
+const noteElement = $(`#note-${id}`);
+ if(noteElement){
+    noteElement.remove();
+    console.log('Removed ')
+ }
+}catch(error){
+    console.error('Error deleting note', error);
+}
 }
 
 
