@@ -211,7 +211,7 @@ function renderNote(note){
         })
 }
 
-async function updateNoteTitle(id, newTitle){
+ function updateNoteTitle(id, newTitle){
     const timerKey = `${id}_title`;
     const noteIndex = notes.findIndex(note => note.id === id);
 
@@ -277,13 +277,36 @@ if(noteIndex!==-1){
 }
 
 
-function updateNotePosition(id, left, top){
+ function updateNotePosition(id, left, top){
+ const timerKey = `${id}_position`;
  const noteIndex = notes.findIndex(note => note.id === id);
  if(noteIndex!==-1){
     notes[noteIndex].positionLeft = left;
     notes[noteIndex].positionTop = top;
-    saveNote(notes[noteIndex]);
- }   
+
+    if(debounceTimers[timerKey]){
+        clearTimeout(debounceTimers[timerKey])
+    }
+
+    debounceTimers[timerKey] = setTimeout (async() =>{
+        try{
+    const response = await fetch(`http://localhost:3000/notes/position/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-type': 'application/json'
+        },
+        body: JSON.stringify({positionLeft: left, positionTop: top})
+    });
+
+    if(!response.ok){
+        throw new Error(`Error updating position: ${response.statusText}`);
+    }
+    delete debounceTimers[timerKey];
+}catch(error){
+    console.error('Error updating position', error)
+}
+ }, 3000);
+}   
 }
 
 async function removeNote(id){

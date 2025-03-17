@@ -119,7 +119,29 @@ app.put('/notes/content/:id', async(req, res) => {
             if(result.rowsAffected[0] === 0){
                 return res.status(404).send('Note not found');
             }
-            res.status(201).json('Content updated');
+            return res.status(201).json('Content updated');
+    }catch(error){
+        return res.status(500).send(error.message);
+    }
+})
+
+//Update note position
+app.put('/notes/position/:id', async(req, res) => {
+    const{id} = req.params;
+    const{positionLeft, positionTop} = req.body;
+
+    try{
+        const result = await sql.query `
+        UPDATE Notes SET
+        positionLeft = ${positionLeft},
+        positionTop = ${positionTop}
+        WHERE id = ${id}
+        `;
+
+        if(result.rowsAffected[0] === 0){
+            return res.status(404).json('Notes not found');
+        }
+        return res.status(201).json('Position updated');
     }catch(error){
         return res.status(500).send(error.message);
     }
