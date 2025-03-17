@@ -56,9 +56,9 @@ function previewNote(){
 
     $addContainer.html(`<div class="sticky-note" id="preview-note" style="background-color: ${previewNoteData.cardcolor}">
             <div class="sticky-note-header">
-                <textarea class="sticky-note-title" placeholder="Title" style="color: ${previewNoteData.textcolor}"></textarea>
+                <textarea class="pre-sticky-note-title" placeholder="Title" style="color: ${previewNoteData.textcolor}"></textarea>
             </div>
-            <textarea class="sticky-note-content" placeholder="Content"></textarea>
+            <textarea class="pre-sticky-note-content" placeholder="Content"></textarea>
         </div>
         <div class="button-container">
             <input type="text" id="card-color-picker" class="color-picker">
@@ -73,8 +73,8 @@ function previewNote(){
 
     
 
-        $addContainer.find('.sticky-note-title').val(previewNoteData.title);
-        $addContainer.find('.sticky-note-content').val(previewNoteData.content);
+        $addContainer.find('.pre-sticky-note-title').val(previewNoteData.title);
+        $addContainer.find('.pre-sticky-note-content').val(previewNoteData.content);
 
         $('#card-color-picker').spectrum({
             color: previewNoteData.cardcolor,
@@ -108,15 +108,16 @@ function previewNote(){
             ],
             change: function(color){
                 previewNoteData.textcolor = color.toHexString();
-                $('.sticky-note-title, .sticky-note-content').css('color', previewNoteData.textcolor);
+                $('.pre-sticky-note-title').css('color', previewNoteData.textcolor);
+                $('.pre-sticky-note-content').css('color', previewNoteData.textcolor);
             }
         });
 
-        $addContainer.find('.sticky-note-title').on('input', function(){
+        $addContainer.find('.pre-sticky-note-title').on('input', function(){
             previewNoteData.title = $(this).val();
         });
 
-        $addContainer.find('.sticky-note-content').on('input', function(){
+        $addContainer.find('.pre-sticky-note-content').on('input', function(){
             previewNoteData.content = $(this).val();
         })
 
