@@ -2,6 +2,8 @@ const express = require('express');
 const sql = require('mssql');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 require('dotenv').config(); 
 
 
@@ -20,19 +22,152 @@ const dbconfig = {
     }
 };
 
-sql.connect(dbconfig)
-    .then(() => console.log('Connected to SQL Server'))
-    .catch(err => console.error('DB Connection Error:', err));
+async function getDBConnection() {
+    try{
+        return await sql.connect(dbconfig);
+    }catch(err){
+        console.error("DB Connection Error:", err);
+        throw err;
+    }
+}
 
-    const PORT = process.env.PORT;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+});
+
+//Register route
+app.post('/register', async (req,res) => {
+    try{
+        const { username, email, password } =req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const pool = await getDBConnection();
+
+        const result = await pool
+        .request()
+        .input("username", sql.VarChar, username)
+        .input("email", sql.VarChar, email)
+        .input("password", sql.VarChar, hashedPassword)
+        .query(
+            `INSERT INTO Users (username, email, password) VALUES(@username, @email, @password)`
+        );
+
+        res.status(201).send(result);
+    }catch(error){
+        res.status(500).send({error: 'Error creating user', message:error.message})
+    }
 })
+
+
+//Login
+app.post('/login', async (req, res) => {
+    try{
+        const {username, password} = req.body;
+
+        //Check if user exists
+        const pool = await getDBConnection();
+        const result = await pool.request()
+        .input("username", sql.VarChar, username)
+        .query(`SELECT * FROM Users WHERE username = @username`);
+
+        const user = result.recordset[0];
+
+        if(!user){
+            return res.status(401).json({error:"user not found"});
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if(!isMatch){
+            return res.status(401).json({error: "Invalid email or password"});
+        }
+
+        const accessToken = jwt.sign(
+            {userId: user.id, username: user.username, email: user.email },
+            process.env.ACCESS_TOKEN_SECRET,
+            {expiresIn: "15m"}
+        );
+
+        const refreshToken = jwt.sign(
+            {userId: user.id, username: user.username, email: user.email },
+            process.env.REFRESH_TOKEN_SECRET,
+            {expiresIn: "7d"}
+        );
+
+        await pool.request()
+        .input("userId", sql.Int, user.id)
+        .input("refreshToken", sql.NVarChar, refreshToken)
+        .query("UPDATE users SET refreshToken = @refreshToken WHERE id = @userId");
+
+        res.json({access_token: accessToken, refresh_token: refreshToken});
+
+    }catch(error){
+        res.status(500).json({error: 'Error logging in', message: error.message});
+    }
+})
+
+//REFRESH TOKEN API (Validates and Issues a New Access Token)
+app.post('/refresh', async (req, res) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+        return res.status(403).json({ error: "No refresh token provided" });
+    }
+
+    try {
+        const pool = await getDBConnection();
+        const result = await pool.request()
+            .input("refreshToken", sql.NVarChar, refreshToken)
+            .query("SELECT * FROM Users WHERE refreshToken = @refreshToken");
+
+        const user = result.recordset[0];
+
+        if (!user) {
+            return res.status(403).json({ error: "Invalid refresh token" });
+        }
+
+        // Verify refresh token
+        jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
+            if (err) {
+                return res.status(403).json({ error: "Invalid refresh token" });
+            }
+
+            // Generate new access token
+            const newAccessToken = jwt.sign({ userId: user.id, email: user.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+
+            res.json({ accessToken: newAccessToken });
+        });
+    } catch (error) {
+        res.status(500).json({ error: "Token refresh failed", message: error.message });
+    }
+});
+
+//Logout
+app.post('/logout', async(req, res) => {
+    const { refreshToken } = req.body;
+
+    if(!refreshToken){
+        return res.status(400).json({error: 'No refresh token provided'});
+    }
+
+    try{
+        const pool = await getDBConnection();
+        await pool.request()
+        .input("refreshToken", sql.NVarChar, refreshToken)
+        .query("UPDATE Users SET refreshToken = NULL where refreshToken = @refreshToken");
+
+        res.json({message: "Logged out successfully"});
+    }catch(error){
+        res.status(500).json({error: 'Logout failed', message: error.message});
+    }
+});
 
 //Get all notes
 app.get('/notes', async (req, res) => {
     try{
-        const result = await sql.query('SELECT * FROM Notes');
+        const pool = await getDBConnection();
+
+        const result = await pool.query('SELECT * FROM Notes');
         res.json(result.recordset);
     }catch(error){
         res.status(500).send(error.message);
@@ -48,11 +183,13 @@ app.post('/notes', async(req, res) => {
 
     try{
         const id = Date.now().toString();
-        const request = new sql.Request();
+        const pool = await getDBConnection();
+        const request = pool.request();
 
         const noteData = {
             id, title, content, cardcolor, textcolor, positionLeft, positionTop
         }
+
 
         request.input('id', sql.NVarChar, id);
         request.input('title', sql.NVarChar, title);
@@ -64,8 +201,9 @@ app.post('/notes', async(req, res) => {
 
         await request.query(`
            INSERT INTO Notes(id, title, content, cardcolor, textcolor, positionLeft, positionTop)
-           VALUES (@id, @title, @content, @cardcolor, @textcolor, @positionLeft, @positionLeft ) 
+           VALUES (@id, @title, @content, @cardcolor, @textcolor, @positionLeft, @positionTop ) 
             `);
+
             res.status(201).json(noteData);
     }catch(error){
         res.status(500).send(error.message);

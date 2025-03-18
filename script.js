@@ -25,7 +25,8 @@ async function initApp() {
         await loadNotes();
 
         setupPreviewNote();
-        
+        $('.validation-icon-title-validation').hide();
+        $('.validation-icon-content-validation').hide();        
 
         $notesContainer.droppable();
     } catch (error) {
@@ -60,29 +61,33 @@ function setupPreviewNote(){
 }
 
 function previewNote(){
-
-
     $addContainer.html(`<div class="sticky-note" id="preview-note" style="background-color: ${previewNoteData.cardcolor}">
             <div class="sticky-note-header">
-                <textarea class="sticky-note-title" placeholder="Title" style="color: ${previewNoteData.textcolor}"></textarea>
+                <textarea class="pre-sticky-note-title" placeholder="Title" style="color: ${previewNoteData.textcolor}"></textarea>
+                <span class="validation-icon-title-validation" title="Title cannot be empty"><i class="fas fa-exclamation-circle" style="color: red;"></i>
+</span>
             </div>
-            <textarea class="sticky-note-content" placeholder="Content"></textarea>
+            <textarea class="pre-sticky-note-content" placeholder="Content"></textarea>
+            <span class="validation-icon-content-validation" title="Content cannot be empty"><i class="fas fa-exclamation-circle" style="color: red;"></i></span>
         </div>
         <div class="button-container">
             <input type="text" id="card-color-picker" class="color-picker">
             <label for="card-color-picker">Card Color</label><br>
      
             <input type="text" id="text-color-picker" class="color-picker">
-            <label for="card-color-picker">Text Color</label><br>
+            <label for="card-color-picker">Text Color</label><br>   
 
             <button class="save-note">Add Note</button>
-        </div>
+        </div>  
+            <p id="error-message-title" style="color: red; display: none; text-align: left; margin-top: 5px;"></p>
+            <p id="error-message-content" style="color: red; display: none; text-align: left; margin-top: 5px;"></p>
         `);
 
-    
 
         $addContainer.find('.sticky-note-title').val(previewNoteData.title);
         $addContainer.find('.sticky-note-content').val(previewNoteData.content);
+
+        
 
         $('#card-color-picker').spectrum({
             color: previewNoteData.cardcolor,
@@ -108,33 +113,40 @@ function previewNote(){
             palette: colorPalette,
             change: function(color){
                 previewNoteData.textcolor = color.toHexString();
-                $('.sticky-note-title, .sticky-note-content').css('color', previewNoteData.textcolor);
+                $('.pre-sticky-note-title').css('color', previewNoteData.textcolor);
+                $('.pre-sticky-note-content').css('color', previewNoteData.textcolor);
             }
         });
 
         $addContainer.find('.sticky-note-title').on('input', function(){
             previewNoteData.title = $(this).val();
+            $('.validation-icon-title-validation').hide();
         });
 
         $addContainer.find('.sticky-note-content').on('input', function(){
             previewNoteData.content = $(this).val();
+            $('.validation-icon-content-validation').hide();
         })
 
-        $addContainer.find('.save-note').on('click', function(){
-            if(previewNoteData.title.trim()!=='' && previewNoteData.content.trim()!==''){
+        $addContainer.find('.save-note').on('click', function()
+        {
+            if(previewNoteData.title.trim()==''){
+                $('#error-message-title').text('Title must not be empty').show();
+                $('.validation-icon-title-validation').show();
+            }
+            if(previewNoteData.content.trim()==''){
+                $('#error-message-content').text('content must not be empty').show();
+                $('.validation-icon-content-validation').show();
+            }
+        if(previewNoteData.title.trim()!=='' && previewNoteData.content.trim()!==''){
             addNewNote(previewNoteData);
-           setupPreviewNote();
+            setupPreviewNote();
         }else{
-            Swal.fire({
-                icon: 'error',
-                title: 'Oops!',
-                text: 'Title and Content must not be empty',
-                confirmButtonText: 'OK',
-            })
         }
         })
 
 }
+
 
 async function addNewNote(note){
     const noteData = {
@@ -240,7 +252,7 @@ function renderNote(note){
     }catch(error){
         console.error('Error updating title:', error);
     }
-}, 5000);
+}, 3000);
 }
 }
 
@@ -272,7 +284,7 @@ if(noteIndex!==-1){
         }catch(error){
             console.error('Error updating content', error);
         }
-    }, 5000);
+    }, 3000);
 }
 }
 
