@@ -8,7 +8,12 @@ require('dotenv').config();
 
 
 const app = express();
-app.use(cors());
+const corsOptions = {
+    origin: 'http://127.0.0.1:5500',
+    credentials: true,
+    optionSuccessStatus: 200
+}
+app.use(cors(corsOptions));
 app.use(bodyParser.json());
 
 const dbconfig = {
@@ -85,7 +90,7 @@ app.post('/login', async (req, res) => {
         const accessToken = jwt.sign(
             {userId: user.id, username: user.username, email: user.email },
             process.env.ACCESS_TOKEN_SECRET,
-            {expiresIn: "15m"}
+            {expiresIn: "1m"}
         );
 
         const refreshToken = jwt.sign(
@@ -106,7 +111,7 @@ app.post('/login', async (req, res) => {
     }
 })
 
-//REFRESH TOKEN API (Validates and Issues a New Access Token)
+//REFRESH TOKEN API 
 app.post('/refresh', async (req, res) => {
     const { refreshToken } = req.body;
 
@@ -162,6 +167,26 @@ app.post('/logout', async(req, res) => {
     }
 });
 
+// 🔹 PROTECTED ROUTE (Example)
+app.get('/protected', authenticateToken, (req, res) => {
+    res.json({ message: "This is a protected route", user: req.user });
+});
+
+// 🔹 Middleware to Verify Access Token
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+
+    jwt.verify(token, ACCESS_TOKEN_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: "Invalid token" });
+
+        req.user = user;
+        next();
+    });
+}
+
 //Get all notes
 app.get('/notes', async (req, res) => {
     try{
@@ -182,14 +207,25 @@ app.post('/notes', async(req, res) => {
     }
 
     try{
+        const token = req.headers.authorization?.split(" ")[1];
+        if(!token) return res.status(401).json({error: 'Unauthorized'})
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        const user_id = decoded.userId;
+        
         const id = Date.now().toString();
         const pool = await getDBConnection();
         const request = pool.request();
 
         const noteData = {
-            id, title, content, cardcolor, textcolor, positionLeft, positionTop
-        }
-
+            id, 
+            title, 
+            content, 
+            cardcolor, 
+            textcolor, 
+            positionLeft, 
+            positionTop,
+            user_id
+        };
 
         request.input('id', sql.NVarChar, id);
         request.input('title', sql.NVarChar, title);
@@ -198,10 +234,11 @@ app.post('/notes', async(req, res) => {
         request.input('textcolor', sql.NVarChar, textcolor);
         request.input('positionLeft', sql.Float, positionLeft);
         request.input('positionTop', sql.Float, positionTop);
+        request.input('user_id', sql.Int, user_id);
 
         await request.query(`
-           INSERT INTO Notes(id, title, content, cardcolor, textcolor, positionLeft, positionTop)
-           VALUES (@id, @title, @content, @cardcolor, @textcolor, @positionLeft, @positionTop ) 
+           INSERT INTO Notes(id, title, content, cardcolor, textcolor, positionLeft, positionTop, user_id)
+           VALUES (@id, @title, @content, @cardcolor, @textcolor, @positionLeft, @positionTop, @user_id) 
             `);
 
             res.status(201).json(noteData);

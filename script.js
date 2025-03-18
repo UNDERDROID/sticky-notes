@@ -34,9 +34,70 @@ async function initApp() {
     }
 }
 
+async function fetchWithAuth(url, options = {}){
+    let accessToken = localStorage.getItem('accessToken');
+
+    options.headers = {
+        ...options.headers,
+        "Authorization": `Bearer ${accessToken}`
+    };
+
+    let response = await fetch(url, options);
+
+    if(response.status === 401){
+        console.log('Access token expired. Refreshing...');
+
+        const refreshSuccess = await refreshAccessToken();
+        if(!refreshSuccess){
+            return Promise.reject("Session expired. Login again");
+        }
+
+        //retry with new token
+        accessToken = localStorage.getItem("accessToken");
+        options.headers["Authorization"] = `Bearer ${accessToken}`;
+        response = await fetch(url, options);
+    }
+    return response;
+}
+
+async function refreshAccessToken(){
+    try{
+        const refresh = localStorage.getItem('refreshToken');
+
+        const refreshData = {
+            refreshToken: refresh
+        }
+        
+        const response = await fetch('http://localhost:3000/refresh',{
+            method: 'POST',
+            headers: {
+                'Content-type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(refreshData)
+        });
+
+        const data = await response.json();
+        if (response.ok){
+            localStorage.setItem('accessToken', data.accessToken);
+            console.log('access token refreshed');
+            return true;
+        } else{
+            console.log('refresh token expired. redirecting to login');
+            localStorage.removeItem("accessToken");
+            // window.location.href = "login.html";
+            return false;
+        }
+    }catch(error){
+        console.error("Error refreshing access token:", error);
+        // window.location.href = "login.html";
+        return false;
+    }
+}
+
 async function loadNotes() {
     try{
-        const response = await fetch('http://localhost:3000/notes');
+        const response = await fetchWithAuth('http://localhost:3000/notes');
         notes = await response.json();
          console.log(notes);
         // notes = await getAllNotes();
@@ -118,12 +179,12 @@ function previewNote(){
             }
         });
 
-        $addContainer.find('.sticky-note-title').on('input', function(){
+        $addContainer.find('.pre-sticky-note-title').on('input', function(){
             previewNoteData.title = $(this).val();
             $('.validation-icon-title-validation').hide();
         });
 
-        $addContainer.find('.sticky-note-content').on('input', function(){
+        $addContainer.find('.pre-sticky-note-content').on('input', function(){
             previewNoteData.content = $(this).val();
             $('.validation-icon-content-validation').hide();
         })
@@ -139,6 +200,7 @@ function previewNote(){
                 $('.validation-icon-content-validation').show();
             }
         if(previewNoteData.title.trim()!=='' && previewNoteData.content.trim()!==''){
+            refreshAccessToken();
             addNewNote(previewNoteData);
             setupPreviewNote();
         }else{
@@ -160,16 +222,16 @@ async function addNewNote(note){
     }
     
     try{
-        const response = await fetch('http://localhost:3000/notes', {
+        const response = await fetchWithAuth('http://localhost:3000/notes', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(noteData)
         });
+
         if(!response.ok){
             throw new Error(`Failed to save note: ${response.statusText}`);
         }
+
         const savedNote = await response.json();
         
         notes.push(savedNote);
