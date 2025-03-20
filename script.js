@@ -18,6 +18,11 @@ const debounceTimers = {};
 // Initialize the application
 async function initApp() {
     try {
+        const accessToken = localStorage.getItem('accessToken');
+
+        if(!accessToken){
+            window.location.href='login.html';
+        }
         // Initialize the database
         await initDB();
         
@@ -44,7 +49,8 @@ async function fetchWithAuth(url, options = {}){
 
     let response = await fetch(url, options);
 
-    if(response.status === 401){
+    //If access token is expired
+    if(response.status === 401||500){
         console.log('Access token expired. Refreshing...');
 
         const refreshSuccess = await refreshAccessToken();
@@ -54,7 +60,13 @@ async function fetchWithAuth(url, options = {}){
 
         //retry with new token
         accessToken = localStorage.getItem("accessToken");
-        options.headers["Authorization"] = `Bearer ${accessToken}`;
+        options = {
+            ...options,
+            headers: {
+                ...options.headers,
+                "Authorization": `Bearer ${accessToken}`
+            }
+        };
         response = await fetch(url, options);
     }
     return response;
@@ -62,24 +74,21 @@ async function fetchWithAuth(url, options = {}){
 
 async function refreshAccessToken(){
     try{
-        const refresh = localStorage.getItem('refreshToken');
-
-        const refreshData = {
-            refreshToken: refresh
-        }
+        const refreshToken = localStorage.getItem('refreshToken');
         
         const response = await fetch('http://localhost:3000/refresh',{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json'
             },
-            credentials: 'include',
-            body: JSON.stringify(refreshData)
+            // credentials: 'include',
+            body: JSON.stringify({refreshToken})
         });
 
         const data = await response.json();
         if (response.ok){
             localStorage.setItem('accessToken', data.accessToken);
+            localStorage.setItem('refreshToken', data.refreshToken);
             console.log('access token refreshed');
             return true;
         } else{
@@ -94,6 +103,13 @@ async function refreshAccessToken(){
         return false;
     }
 }
+
+$('#logoutBtn').click(function () {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    window.location.href = "login.html"; // Redirect to login page
+});
+
 
 async function loadNotes() {
     try{
@@ -182,11 +198,19 @@ function previewNote(){
         $addContainer.find('.pre-sticky-note-title').on('input', function(){
             previewNoteData.title = $(this).val();
             $('.validation-icon-title-validation').hide();
+            $('#error-message-title').text('').hide();
+            $('.pre-sticky-note-title').css({
+                "border": "none"
+            })
         });
 
         $addContainer.find('.pre-sticky-note-content').on('input', function(){
             previewNoteData.content = $(this).val();
             $('.validation-icon-content-validation').hide();
+            $('#error-message-content').text('').hide();
+            $('.pre-sticky-note-content').css({
+                "border": "none"
+            })
         })
 
         $addContainer.find('.save-note').on('click', function()
@@ -194,10 +218,21 @@ function previewNote(){
             if(previewNoteData.title.trim()==''){
                 $('#error-message-title').text('Title must not be empty').show();
                 $('.validation-icon-title-validation').show();
+                $('.pre-sticky-note-title').css({
+                    "border": "1px solid red",
+                    "width": "100%",
+                    "height": "25px",
+                    "border-radius": "5px"
+                });
+
             }
             if(previewNoteData.content.trim()==''){
                 $('#error-message-content').text('content must not be empty').show();
                 $('.validation-icon-content-validation').show();
+                $('.pre-sticky-note-content').css({
+                    "border": "1px solid red",
+                    "border-radius": "5px"
+                })
             }
         if(previewNoteData.title.trim()!=='' && previewNoteData.content.trim()!==''){
             refreshAccessToken();

@@ -49,6 +49,30 @@ app.post('/register', async (req,res) => {
 
         const pool = await getDBConnection();
 
+        const existingUser = await pool
+        .request()
+        .input("username", sql.VarChar, username)
+        .input("email", sql.VarChar, email)
+        .query(
+            `SELECT * FROM Users WHERE username = @username OR email = @email`
+        );
+
+        if(existingUser.recordset.length > 0){
+            const existing = existingUser.recordset[0];
+
+            if (existing.username === username || existing.email === email){
+                return res.status(400).json({ user_error: "Username already exists", email_error: "Email already exists"})
+            }
+
+            if(existing.user === user){
+                return res.status(400).json({user_error: "Username already exists"})
+            }
+
+            if (existing.email === email){
+                return res.status(400).json({ email_error: "Email already exists"})
+            }
+        }
+
         const result = await pool
         .request()
         .input("username", sql.VarChar, username)
@@ -79,18 +103,18 @@ app.post('/login', async (req, res) => {
         const user = result.recordset[0];
 
         if(!user){
-            return res.status(401).json({error:"user not found"});
+            return res.status(401).json({error:"Invalid username or password"});
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
         if(!isMatch){
-            return res.status(401).json({error: "Invalid email or password"});
+            return res.status(401).json({error: "Invalid username or password"});
         }
 
         const accessToken = jwt.sign(
             {userId: user.id, username: user.username, email: user.email },
             process.env.ACCESS_TOKEN_SECRET,
-            {expiresIn: "1m"}
+            {expiresIn: "15s"}
         );
 
         const refreshToken = jwt.sign(
@@ -116,10 +140,13 @@ app.post('/refresh', async (req, res) => {
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
-        return res.status(403).json({ error: "No refresh token provided" });
+        return res.status(401).json({ error: "No refresh token provided" });
     }
 
     try {
+
+        const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+
         const pool = await getDBConnection();
         const result = await pool.request()
             .input("refreshToken", sql.NVarChar, refreshToken)
@@ -128,22 +155,32 @@ app.post('/refresh', async (req, res) => {
         const user = result.recordset[0];
 
         if (!user) {
-            return res.status(403).json({ error: "Invalid refresh token" });
+            return res.status(401).json({ error: "Invalid refresh token" });
         }
 
-        // Verify refresh token
-        jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
-            if (err) {
-                return res.status(403).json({ error: "Invalid refresh token" });
-            }
 
             // Generate new access token
-            const newAccessToken = jwt.sign({ userId: user.id, email: user.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+            const newAccessToken = jwt.sign(
+                { userId: user.id, email: user.email }, 
+                process.env.ACCESS_TOKEN_SECRET, 
+                { expiresIn: '15s' }
+            );
 
-            res.json({ accessToken: newAccessToken });
-        });
+            const newRefreshToken = jwt.sign(
+                { userId: user.id, email: user.email},
+                process.env.REFRESH_TOKEN_SECRET,
+                { expiresIn: '7d' }
+            )
+
+            await pool.request()
+            .input("userId", sql.Int, user.id)
+            .input("newRefreshToken", sql.NVarChar, newRefreshToken)
+            .query("UPDATE Users SET refreshToken = @newRefreshToken WHERE id = @userId");
+
+            res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+        
     } catch (error) {
-        res.status(500).json({ error: "Token refresh failed", message: error.message });
+        res.status(403).json({ error: "Token refresh failed", message: error.message });
     }
 });
 
@@ -167,35 +204,20 @@ app.post('/logout', async(req, res) => {
     }
 });
 
-// 🔹 PROTECTED ROUTE (Example)
-app.get('/protected', authenticateToken, (req, res) => {
-    res.json({ message: "This is a protected route", user: req.user });
-});
-
-// 🔹 Middleware to Verify Access Token
-function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-
-    jwt.verify(token, ACCESS_TOKEN_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: "Invalid token" });
-
-        req.user = user;
-        next();
-    });
-}
 
 //Get all notes
 app.get('/notes', async (req, res) => {
     try{
+        const token = req.headers.authorization?.split(" ")[1];
+        if(!token) return res.status(401).json({error: 'Unauthorized'})
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        const user_id = decoded.userId;
         const pool = await getDBConnection();
 
-        const result = await pool.query('SELECT * FROM Notes');
+        const result = await pool.query(`SELECT * FROM Notes WHERE user_id = ${user_id}`);
         res.json(result.recordset);
     }catch(error){
-        res.status(500).send(error.message);
+        res.status(500).json({error: error.message});
     }
 })
 
