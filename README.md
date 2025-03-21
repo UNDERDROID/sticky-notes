@@ -27,7 +27,7 @@ Microsoft SQL Server (For database management)
 ## Installation  
 **Clone the repository:**
 ```bash
-git clone https://github.com/UNDERDROID/sticky-notes.git
+git clone --branch Phase-2 --single-branch https://github.com/UNDERDROID/sticky-notes.git
 cd Sticky Notes+
 ```
 **Install dependencies:**
