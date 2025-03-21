@@ -22,7 +22,10 @@
         </label>
         <div class="username-container">
         <input type="text" id="registerUsername" placeholder="Username" required></input>
+        <div class="tooltip-container">
         <i class="fas fa-exclamation-circle error-icon" id="username-error" style="color: red;"></i>
+        <span class="custom-tooltip" id="username-tooltip"></span>
+        </div>
     </div>
 
     <label for="registerEmail" id="email-exists-error" class="error-message" style="color: red; display: none;">
@@ -32,19 +35,22 @@
         Email Invalid
     </label>
     <div class="email-container">
-    <input type="text" id="registerEmail" placeholder="Email" required></input>
+        <input type="text" id="registerEmail" placeholder="Email" required></input>
     <div class="tooltip-container">
-    <i class="fas fa-exclamation-circle error-icon" id="email-error" style="color: red;"></i>
-    <span class="custom-tooltip" id="email-tooltip"></span>
-</div>
-</div>
+        <i class="fas fa-exclamation-circle error-icon" id="email-error" style="color: red;"></i>
+        <span class="custom-tooltip" id="email-tooltip"></span>
+    </div>
+    </div>
 
     <label for="registerEmail" id="password-invalid-error" class="error-message" style="color: red; display: none;">
         Password Invalid
     </label>
     <div class="password-container">
     <input type="password" id="registerPassword" placeholder="Password" required></input>
+    <div class="tooltip-container">
     <i class="fas fa-exclamation-circle error-icon" id="password-error" style="color: red;"></i>
+    <span class="custom-tooltip" id="password-tooltip"></span>
+    </div>
     </div>
 
         <button type="submit">Register</button>

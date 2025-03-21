@@ -3,7 +3,7 @@
 // DOM Elements using jQuery
 const $notesContainer = $('#notes-container');
 const $addContainer = $('#add-container');
-
+const API_URL = 'http://localhost:3000';
 
 // State
 let notes = [];
@@ -76,7 +76,7 @@ async function refreshAccessToken(){
     try{
         const refreshToken = localStorage.getItem('refreshToken');
         
-        const response = await fetch('http://localhost:3000/refresh',{
+        const response = await fetch(`${API_URL}/refresh`,{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json'
@@ -113,7 +113,7 @@ $('#logoutBtn').click(function () {
 
 async function loadNotes() {
     try{
-        const response = await fetchWithAuth('http://localhost:3000/notes');
+        const response = await fetchWithAuth(`${API_URL}/notes`);
         notes = await response.json();
          console.log(notes);
         // notes = await getAllNotes();
@@ -244,6 +244,8 @@ function previewNote(){
             refreshAccessToken();
             addNewNote(previewNoteData);
             setupPreviewNote();
+            $('.validation-icon-title-validation').hide();
+            $('.validation-icon-content-validation').hide(); 
         }else{
         }
         })
@@ -263,7 +265,7 @@ async function addNewNote(note){
     }
     
     try{
-        const response = await fetchWithAuth('http://localhost:3000/notes', {
+        const response = await fetchWithAuth(`${API_URL}/notes`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(noteData)
@@ -340,7 +342,7 @@ function renderNote(note){
 
         debounceTimers[timerKey] = setTimeout(async() => {
             try{
-        const response = await fetch(`http://localhost:3000/notes/title/${id}`, {
+        const response = await fetch(`${API_URL}/notes/title/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -372,7 +374,7 @@ if(noteIndex!==-1){
 
     debounceTimers[timerKey] = setTimeout(async()=>{
         try{
-            const response = await fetch(`http://localhost:3000/notes/content/${id}`, {
+            const response = await fetch(`${API_URL}/notes/content/${id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-type': 'application/json'
@@ -405,7 +407,7 @@ if(noteIndex!==-1){
 
     debounceTimers[timerKey] = setTimeout (async() =>{
         try{
-    const response = await fetch(`http://localhost:3000/notes/position/${id}`, {
+    const response = await fetch(`${API_URL}/notes/position/${id}`, {
         method: 'PUT',
         headers: {
             'Content-type': 'application/json'
@@ -426,7 +428,7 @@ if(noteIndex!==-1){
 
 async function removeNote(id){
 try{
- const response = await fetch(`http://localhost:3000/notes/${id}`,{
+ const response = await fetch(`${API_URL}/notes/${id}`,{
     method: 'DELETE'
  });
  if(!response.ok) throw new Error('Failed to delete note')

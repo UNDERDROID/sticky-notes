@@ -130,11 +130,11 @@ app.post('/register', async (req,res) => {
         if(existingUser.recordset.length > 0){
             const existing = existingUser.recordset[0];
 
-            if (existing.username === username || existing.email === email){
+            if (existing.username === username && existing.email === email){
                 return res.status(400).json({ user_error: "Username already exists", email_error: "Email already exists"})
             }
 
-            if(existing.user === user){
+            if(existing.username === username){
                 return res.status(400).json({user_error: "Username already exists"})
             }
 
