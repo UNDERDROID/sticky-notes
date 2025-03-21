@@ -117,7 +117,7 @@ button:hover {
 /* Sticky Note Styles */
 .sticky-note {
     width: 200px;
-    min-height: 200px;
+    min-height: 235px;
     padding: 15px;
     border-radius: 2px;
     box-shadow: 0 3px 6px rgba(0,0,0,0.16);

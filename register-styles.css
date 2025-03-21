@@ -110,3 +110,35 @@ button:hover {
     color: red;
     display: none; 
 }
+
+.tooltip-container {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .custom-tooltip {
+    visibility: hidden;
+    background-color: #ff5733; /* Change this to your desired background color */
+    color: white; /* Text color */
+    text-align: center;
+    border-radius: 4px;
+    padding: 5px 10px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%; /* Position above the icon */
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    white-space: nowrap; /* Prevent text from wrapping */
+  }
+  
+  .tooltip-container:hover .custom-tooltip {
+    visibility: visible;
+    cursor: pointer;
+    opacity: 1;
+  }
+
+  #email-error{
+    top: -8px;
+  }

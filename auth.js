@@ -8,8 +8,34 @@ $(document).ready(function () {
     // Reset errors when user types
     $('#registerUsername, #registerEmail, #registerPassword').on('input', function () {
         $(this).css("border", "");
-        $(this).siblings('.error-message').hide(); // Hide only the relevant error
+        // $(this).siblings('.error-message').hide(); // Hide only the relevant error
     });
+
+    $('#google-signin').on('click', function(){
+        window.location.href = `${API_URL}/auth/google`;
+    })
+
+  // Handle redirect with access & refresh tokens
+    const urlParams = new URLSearchParams(window.location.search);
+    const accessToken = urlParams.get('accessToken');
+    const refreshToken = urlParams.get('refreshToken');
+
+    if (accessToken && refreshToken) {
+        console.log("Tokens received from OAuth, storing in localStorage");
+        localStorage.setItem('accessToken', accessToken); 
+        localStorage.setItem('refreshToken', refreshToken);
+
+        // Remove tokens from URL for security
+        window.history.replaceState({}, document.title, window.location.pathname);
+        // alert("Login Successful! Tokens stored.");
+
+            // Check if we're already on index.html
+            if (!window.location.pathname.includes('index.html')) {
+                console.log("Redirecting to index.html");
+                window.location.href = 'index.html';
+                console.log("Redirected to index.html");
+            }
+    }
 
     // Login Form Submission
     $('#loginForm').submit(async function (e) {
@@ -73,6 +99,9 @@ $(document).ready(function () {
                 if (data.email_error === "Email already exists") {
                     $('#registerEmail').css("border", "1px solid red");
                     $('#email-exists-error').show();
+                    $('#email-error').show();
+                    $('#email-tooltip').show();
+                    $('#email-tooltip').text('Email already exists')
                     isValid = false;
                 }
             }
@@ -103,6 +132,10 @@ $(document).ready(function () {
      $('#registerEmail').on('input', function (){
         const email = $(this).val();
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        $('#email-exists-error').hide();
+        $('#email-tooltip').hide();
+
+
 
     if (emailRegex.test(email)) {
         $('#registerEmail').css("border", "");
@@ -113,6 +146,10 @@ $(document).ready(function () {
         $('#registerEmail').css({ "border": "1px solid red" });
         $('#email-error').show();
         $('#email-invalid-error').show();
+        $('#email-tooltip').show();
+        $('#email-tooltip').text('Invalid email');
+
+
 
     }
     })

@@ -50,7 +50,7 @@ async function fetchWithAuth(url, options = {}){
     let response = await fetch(url, options);
 
     //If access token is expired
-    if(response.status === 401||500){
+    if(response.status === 401|| response.status === 500){
         console.log('Access token expired. Refreshing...');
 
         const refreshSuccess = await refreshAccessToken();
@@ -217,21 +217,27 @@ function previewNote(){
         {
             if(previewNoteData.title.trim()==''){
                 $('#error-message-title').text('Title must not be empty').show();
-                $('.validation-icon-title-validation').show();
+                $('.validation-icon-title-validation').show().css({
+                    "margin-left": "4px"
+                });
                 $('.pre-sticky-note-title').css({
                     "border": "1px solid red",
                     "width": "100%",
                     "height": "25px",
-                    "border-radius": "5px"
+                    "border-radius": "5px",
+                    "padding-left": "5px"
                 });
 
             }
             if(previewNoteData.content.trim()==''){
                 $('#error-message-content').text('content must not be empty').show();
-                $('.validation-icon-content-validation').show();
+                $('.validation-icon-content-validation').show().css({
+                    "margin-top": "2px"
+                });
                 $('.pre-sticky-note-content').css({
                     "border": "1px solid red",
-                    "border-radius": "5px"
+                    "border-radius": "5px",
+                    "padding": "revert"
                 })
             }
         if(previewNoteData.title.trim()!=='' && previewNoteData.content.trim()!==''){

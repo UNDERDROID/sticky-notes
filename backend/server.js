@@ -4,12 +4,20 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const passport = require("passport");
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
+const session = require("express-session");
 require('dotenv').config(); 
 
 
 const app = express();
+
+app.use(session({ secret: "your_secret", resave: false, saveUninitialized: true }));
+app.use(passport.initialize());
+app.use(passport.session());
+
 const corsOptions = {
-    origin: 'http://127.0.0.1:5500',
+    origin: ['http://127.0.0.1:5500','http://localhost:5500'],
     credentials: true,
     optionSuccessStatus: 200
 }
@@ -40,6 +48,68 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
+passport.use(
+    new GoogleStrategy(
+        {
+            clientID: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            callbackURL: "http://localhost:3000/auth/google/callback",
+        },
+        //Check if user exists in DB if not create a new 
+        async(accessToken, refreshToken, profile, done) =>{
+       try{
+        const pool = await getDBConnection();
+        const email = profile.emails[0].value;
+        const name = profile.displayName;
+        
+        //Check if user exists
+        let result = await pool.request()
+                    .input('email', sql.VarChar, email)
+                    .query('SELECT * FROM Users WHERE email = @email');
+
+                    if(result.recordset.length === 0){
+                        await pool.request()
+                        .input('username', sql.VarChar, email.split("@")[0])
+                        .input('email',sql.VarChar, email)
+                        .input('password' , sql.VarChar, '') //No password for google sign in
+                        .query(`INSERT INTO Users (username, email, password) VALUES(@username, @email, @password)`);
+
+                        result = await pool
+                        .request()
+                        .input("email", sql.VarChar, email)
+                        .query("SELECT * FROM Users WHERE email = @email");
+                    }
+                    const user = result.recordset[0];
+                    
+                    done(null, { user }); 
+       }catch(error){
+        done(error, null);
+       }
+    }
+    )
+);
+
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((user, done) => done(null, user));
+
+// Google Auth Route
+app.get("/auth/google", passport.authenticate("google", { scope: ["profile", "email"] }));
+
+app.get("/auth/google/callback", passport.authenticate("google", { failureRedirect: "/login", failureMessage: true,}),
+    async (req, res) => {
+        const user =req.user.user;
+        const accessToken = jwt.sign({ email: user.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15s" });  
+        const refreshToken = jwt.sign({ email: user.email }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" });  
+        const pool= await getDBConnection();
+        await pool.request()
+        .input("refreshToken", sql.VarChar, refreshToken)
+        .query(`UPDATE Users SET refreshToken = @refreshToken WHERE email = '${user.email}'`);
+
+        console.log("Authenticated user:", req.user.user);
+        res.redirect(`http://localhost:5500/login.html?accessToken=${accessToken}&refreshToken=${refreshToken}`); 
+    }
+);
 
 //Register route
 app.post('/register', async (req,res) => {
@@ -114,7 +184,7 @@ app.post('/login', async (req, res) => {
         const accessToken = jwt.sign(
             {userId: user.id, username: user.username, email: user.email },
             process.env.ACCESS_TOKEN_SECRET,
-            {expiresIn: "15s"}
+            {expiresIn: "1h"}
         );
 
         const refreshToken = jwt.sign(
@@ -163,7 +233,7 @@ app.post('/refresh', async (req, res) => {
             const newAccessToken = jwt.sign(
                 { userId: user.id, email: user.email }, 
                 process.env.ACCESS_TOKEN_SECRET, 
-                { expiresIn: '15s' }
+                { expiresIn: '1h' }
             );
 
             const newRefreshToken = jwt.sign(
