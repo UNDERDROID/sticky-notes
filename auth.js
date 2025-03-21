@@ -94,6 +94,9 @@ $(document).ready(function () {
                 if (data.user_error === "Username already exists") {
                     $('#registerUsername').css("border", "1px solid red");
                     $('#username-exists-error').show();
+                    $('#username-error').show();
+                    $('#username-tooltip').show();
+                    $('#username-tooltip').text('Username already exists')
                     isValid = false;
                 }
                 if (data.email_error === "Email already exists") {
@@ -124,6 +127,7 @@ $(document).ready(function () {
             $('#registerPassword').css({ "border": "1px solid red" });
             $('#password-error, #password-invalid').show();
             $('#password-invalid-error').show();
+            $('#password-tooltip').text('invalid password');
 
         }
     });
@@ -157,10 +161,12 @@ $(document).ready(function () {
     //Username validation
     $('#registerUsername').on('input', function (){
         const username = $(this).val();
+        $('#username-exists-error').hide();
         if(username.length < 3){
             $('#username-length-error').show()
             $('#username-error').show()
             $('#registerUsername').css({ "border": "1px solid red" });
+            $('#username-tooltip').text('Username length must be more than 3')
         }else{
             $('#username-length-error').hide()
             $('#username-error').hide()

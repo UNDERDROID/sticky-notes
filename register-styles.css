@@ -142,3 +142,9 @@ button:hover {
   #email-error{
     top: -8px;
   }
+  #password-error{
+    top: -8px;
+  }
+  #username-error{
+    top: -8px;
+  }
