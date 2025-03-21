@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="login-styles.css">
+</head>
+<body>
+    <dic class="login-container">
+        <h1 class="title">Sticky Notes+</h1>
+    <h2 class="login-heading">Login</h2>
+    <form id="loginForm">
+        <input type="username" id="loginUsername" placeholder="Username" required>
+        <input type="password" id="loginPassword" placeholder="Password">
+        <p id="invalid-error" style="color: red; display: none;">Invalid credentials</p>
+        <button type="submit">Login</button>
+        <button id="google-signin">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" width="20" height="20">
+            Sign in with Google
+        </button>
+        <p>Don't have an account? <a href="register.html">Register</a></p>
+    </form>
+</div>
+    <script src="auth.js" defer></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+</body>
+</html>

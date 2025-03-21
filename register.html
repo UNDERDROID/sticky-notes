@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="register-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+</head>
+<body>
+    <div class="register-container">
+        <h2 class="title">Sticky Notes+</h2>
+        <h2 class="register-heading">Register</h2>
+    <form id="registerForm">
+
+        <label for="registerUsername" id="username-exists-error" class="error-message" style="color: red; display: none;">
+            Username already exists
+        </label>        
+        <label for="registerUsername" id="username-length-error" class="error-message" style="color: red; display: none;">
+            Username length must be greater than 3
+        </label>
+        <div class="username-container">
+        <input type="text" id="registerUsername" placeholder="Username" required></input>
+        <i class="fas fa-exclamation-circle error-icon" id="username-error" style="color: red;"></i>
+    </div>
+
+    <label for="registerEmail" id="email-exists-error" class="error-message" style="color: red; display: none;">
+        Email already exists
+    </label>
+    <label for="registerEmail" id="email-invalid-error" class="error-message" style="color: red; display: none;">
+        Email Invalid
+    </label>
+    <div class="email-container">
+    <input type="text" id="registerEmail" placeholder="Email" required></input>
+    <div class="tooltip-container">
+    <i class="fas fa-exclamation-circle error-icon" id="email-error" style="color: red;"></i>
+    <span class="custom-tooltip" id="email-tooltip"></span>
+</div>
+</div>
+
+    <label for="registerEmail" id="password-invalid-error" class="error-message" style="color: red; display: none;">
+        Password Invalid
+    </label>
+    <div class="password-container">
+    <input type="password" id="registerPassword" placeholder="Password" required></input>
+    <i class="fas fa-exclamation-circle error-icon" id="password-error" style="color: red;"></i>
+    </div>
+
+        <button type="submit">Register</button>
+        <p>Already Have an account? <a href="login.html">Log In</a></p>
+    </form>
+    
+
+    <p id="password-invalid" class="error-message" style="color: red; display: none;">
+        Password must be minimum 8 characters and must have atleast one uppercase character, atleast one lowercase character and atleast one special character
+    </p>
+</div>
+    
+    <script src="auth.js" defer></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+</body>
+</html>
