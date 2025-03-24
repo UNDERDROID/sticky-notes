@@ -4,6 +4,25 @@ require('dotenv').config();
 async function initializeTable(){
     try{
         console.log('Checking tables..');
+        const masterConfig = {
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            server: process.env.DB_SERVER,
+            options: {
+                encrypt: process.env.DB_ENCRYPT === 'true',
+                trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE === 'true'
+            }
+        };
+        let pool = await sql.connect(masterConfig);
+
+        await pool.request().query(`
+            IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'StickyNotesDB')
+            BEGIN
+            CREATE DATABASE StickyNotesDB;
+            END
+            `)
+
+            await pool.close();
         
         const dbconfig = {
             user: process.env.DB_USER,  // Change to your SQL Server username
@@ -16,7 +35,7 @@ async function initializeTable(){
             }
         };
 
-        const pool = await sql.connect(dbconfig);
+         pool = await sql.connect(dbconfig);
 
         //Create Users table
          await pool.request().query(`
@@ -41,7 +60,7 @@ async function initializeTable(){
             cardcolor NVARCHAR(20),
             textcolor NVARCHAR(20),
             positionLeft FLOAT(50),
-            positionTop FLOAT(50)
+            positionTop FLOAT(50),
             FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
         );
             `)

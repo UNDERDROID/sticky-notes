@@ -36,11 +36,29 @@ const dbconfig = {
     }
 };
 
+// Create a SQL Server connection pool
+const pool = new sql.ConnectionPool(dbconfig);
+const poolConnect = pool.connect();
+
+// Initialize function to setup the database once at startup
+async function initialize() {
+    try {
+        await poolConnect; // Ensure pool connection is established
+        console.log('Connected to the database');
+        await initializeTable(); // Initialize tables just once
+        console.log('Database tables initialized');
+    } catch (err) {
+        console.error("Initialization Error:", err);
+        process.exit(1); // Exit application if initialization fails
+    }
+}
+
+// Call initialize function when the app starts
+initialize();
+
 async function getDBConnection() {
     try{
-        const pool = await sql.connect(dbconfig);
-            console.log('connected to the database');
-            await initializeTable();
+        await poolConnect;
             return pool;
     }catch(err){
         console.error("DB Connection Error:", err);
