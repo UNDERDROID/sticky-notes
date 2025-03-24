@@ -7,6 +7,7 @@ const jwt = require("jsonwebtoken");
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const session = require("express-session");
+const initializeTable = require("./tblinit");
 require('dotenv').config(); 
 
 
@@ -35,9 +36,30 @@ const dbconfig = {
     }
 };
 
+// Create a SQL Server connection pool
+const pool = new sql.ConnectionPool(dbconfig);
+const poolConnect = pool.connect();
+
+// Initialize function to setup the database once at startup
+async function initialize() {
+    try {
+        await poolConnect; // Ensure pool connection is established
+        console.log('Connected to the database');
+        await initializeTable(); // Initialize tables just once
+        console.log('Database tables initialized');
+    } catch (err) {
+        console.error("Initialization Error:", err);
+        process.exit(1); // Exit application if initialization fails
+    }
+}
+
+// Call initialize function when the app starts
+initialize();
+
 async function getDBConnection() {
     try{
-        return await sql.connect(dbconfig);
+        await poolConnect;
+            return pool;
     }catch(err){
         console.error("DB Connection Error:", err);
         throw err;
@@ -66,7 +88,7 @@ passport.use(
         //Check if user exists
         let result = await pool.request()
                     .input('email', sql.VarChar, email)
-                    .query('SELECT * FROM Users WHERE email = @email');
+                    .query('SELECT id, email FROM Users WHERE email = @email');
 
                     if(result.recordset.length === 0){
                         await pool.request()
@@ -78,11 +100,11 @@ passport.use(
                         result = await pool
                         .request()
                         .input("email", sql.VarChar, email)
-                        .query("SELECT * FROM Users WHERE email = @email");
+                        .query("SELECT id, email FROM Users WHERE email = @email");
                     }
                     const user = result.recordset[0];
                     
-                    done(null, { user }); 
+                    done(null, user ); 
        }catch(error){
         done(error, null);
        }
@@ -91,14 +113,29 @@ passport.use(
 );
 
 passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
-
+passport.deserializeUser(async (user, done) => {
+    try {
+      const pool = await getDBConnection();
+      const result = await pool.request()
+        .input('id', sql.Int, user.id)
+        .query('SELECT id, email, username FROM Users WHERE id = @id');
+      
+      if (result.recordset.length === 0) {
+        return done(new Error('User not found'), null);
+      }
+      
+      done(null, result.recordset[0]);
+    } catch (error) {
+      done(error, null);
+    }
+  });
+  
 // Google Auth Route
 app.get("/auth/google", passport.authenticate("google", { scope: ["profile", "email"] }));
 
 app.get("/auth/google/callback", passport.authenticate("google", { failureRedirect: "/login", failureMessage: true,}),
     async (req, res) => {
-        const user =req.user.user;
+        const user =req.user;
         const accessToken = jwt.sign({ email: user.email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15s" });  
         const refreshToken = jwt.sign({ email: user.email }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" });  
         const pool= await getDBConnection();
@@ -106,7 +143,8 @@ app.get("/auth/google/callback", passport.authenticate("google", { failureRedire
         .input("refreshToken", sql.VarChar, refreshToken)
         .query(`UPDATE Users SET refreshToken = @refreshToken WHERE email = '${user.email}'`);
 
-        console.log("Authenticated user:", req.user.user);
+        console.log("Authenticated user:", req.user);
+        console.log("Session data:", req.session.passport);
         res.redirect(`http://localhost:5500/login.html?accessToken=${accessToken}&refreshToken=${refreshToken}`); 
     }
 );

@@ -252,7 +252,6 @@ function previewNote(){
 
 }
 
-
 async function addNewNote(note){
     const noteData = {
         id: Date.now().toString(),
@@ -392,7 +391,6 @@ if(noteIndex!==-1){
     }, 3000);
 }
 }
-
 
  function updateNotePosition(id, left, top){
  const timerKey = `${id}_position`;

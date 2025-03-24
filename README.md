@@ -34,33 +34,16 @@ cd Sticky Notes+
 ```bash
 npm install
 ```
-**Set up the database:**
+**Set up the database:**  
+**Steps to connect to MSSQL**  
+- Firstly connect using Windows Authentication.
+- Right click the server and head to properties. In the properties go to security and select SQL Server and Windows Authentication mode in the Server Authentication and click OK.
+- In the object explorer navigate to Security and Right click the Logins folder and click New Login then select SQL Server authentication and enter Login name and password then click OK.
+- Now connect using SQL authentication using the login name and password you just created.
+
+
 Create a database in SQL named StickyNotesDB. 
-In the database, create these tables:  
 
-**Notes**
-```SQL
-CREATE TABLE Notes (
-    id NVARCHAR IDENTITY(1,1) PRIMARY KEY,
-    userId INT NOT NULL,
-    title NVARCHAR(255) NOT NULL,
-    content TEXT NOT NULL,
-    cardcolor NVARCHAR(20),
-    textcolor NVARCHAR(20),
-    FOREIGN KEY (userId) REFERENCES Users(id) ON DELETE CASCADE
-);
-```
-
-**Users**
-```SQL
-CREATE TABLE Users (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    username VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR NOT NULL,
-    refreshToken NVARCHAR NOT NULL
-);
-```
 
 
 Example:   
@@ -69,7 +52,7 @@ Example:
 DB_USER=your_db_user
 DB_PASSWORD=your_db_password
 DB_SERVER=localhost
-DB_DATABASE=sticky_notes_db
+DB_DATABASE=StickyNotesDB
 DB_ENCRYPT=true
 DB_TRUST_SERVER_CERTIFICATE=true
 PORT=3000
