@@ -10,7 +10,6 @@ const session = require("express-session");
 const initializeTable = require("./tblinit");
 require('dotenv').config(); 
 
-
 const app = express();
 
 app.use(session({ secret: "your_secret", resave: false, saveUninitialized: true }));
@@ -24,6 +23,10 @@ const corsOptions = {
 }
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
+app.use(express.json());
+
+const authRoutes = require("./routes/authRoutes");
+
 
 const dbconfig = {
     user: process.env.DB_USER,  // Change to your SQL Server username
@@ -36,30 +39,12 @@ const dbconfig = {
     }
 };
 
-// Create a SQL Server connection pool
-const pool = new sql.ConnectionPool(dbconfig);
-const poolConnect = pool.connect();
-
-// Initialize function to setup the database once at startup
-async function initialize() {
-    try {
-        await poolConnect; // Ensure pool connection is established
-        console.log('Connected to the database');
-        await initializeTable(); // Initialize tables just once
-        console.log('Database tables initialized');
-    } catch (err) {
-        console.error("Initialization Error:", err);
-        process.exit(1); // Exit application if initialization fails
-    }
-}
-
-// Call initialize function when the app starts
-initialize();
-
 async function getDBConnection() {
     try{
-        await poolConnect;
-            return pool;
+    const pool = await sql.connect(dbconfig);
+    console.log('Connected to the database');
+    await initializeTable();
+    return pool;
     }catch(err){
         console.error("DB Connection Error:", err);
         throw err;
@@ -149,52 +134,54 @@ app.get("/auth/google/callback", passport.authenticate("google", { failureRedire
     }
 );
 
-//Register route
-app.post('/register', async (req,res) => {
-    try{
-        const { username, email, password } =req.body;
-        const hashedPassword = await bcrypt.hash(password, 10);
+app.use("/api/auth", authRoutes);
 
-        const pool = await getDBConnection();
+// //Register route
+// app.post('/register', async (req,res) => {
+//     try{
+//         const { username, email, password } =req.body;
+//         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const existingUser = await pool
-        .request()
-        .input("username", sql.VarChar, username)
-        .input("email", sql.VarChar, email)
-        .query(
-            `SELECT * FROM Users WHERE username = @username OR email = @email`
-        );
+//         const pool = await getDBConnection();
 
-        if(existingUser.recordset.length > 0){
-            const existing = existingUser.recordset[0];
+//         const existingUser = await pool
+//         .request()
+//         .input("username", sql.VarChar, username)
+//         .input("email", sql.VarChar, email)
+//         .query(
+//             `SELECT * FROM Users WHERE username = @username OR email = @email`
+//         );
 
-            if (existing.username === username && existing.email === email){
-                return res.status(400).json({ user_error: "Username already exists", email_error: "Email already exists"})
-            }
+//         if(existingUser.recordset.length > 0){
+//             const existing = existingUser.recordset[0];
 
-            if(existing.username === username){
-                return res.status(400).json({user_error: "Username already exists"})
-            }
+//             if (existing.username === username && existing.email === email){
+//                 return res.status(400).json({ user_error: "Username already exists", email_error: "Email already exists"})
+//             }
 
-            if (existing.email === email){
-                return res.status(400).json({ email_error: "Email already exists"})
-            }
-        }
+//             if(existing.username === username){
+//                 return res.status(400).json({user_error: "Username already exists"})
+//             }
 
-        const result = await pool
-        .request()
-        .input("username", sql.VarChar, username)
-        .input("email", sql.VarChar, email)
-        .input("password", sql.VarChar, hashedPassword)
-        .query(
-            `INSERT INTO Users (username, email, password) VALUES(@username, @email, @password)`
-        );
+//             if (existing.email === email){
+//                 return res.status(400).json({ email_error: "Email already exists"})
+//             }
+//         }
 
-        res.status(201).send(result);
-    }catch(error){
-        res.status(500).send({error: 'Error creating user', message:error.message})
-    }
-})
+//         const result = await pool
+//         .request()
+//         .input("username", sql.VarChar, username)
+//         .input("email", sql.VarChar, email)
+//         .input("password", sql.VarChar, hashedPassword)
+//         .query(
+//             `INSERT INTO Users (username, email, password) VALUES(@username, @email, @password)`
+//         );
+
+//         res.status(201).send(result);
+//     }catch(error){
+//         res.status(500).send({error: 'Error creating user', message:error.message})
+//     }
+// })
 
 
 //Login
