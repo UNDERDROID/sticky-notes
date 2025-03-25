@@ -2,27 +2,8 @@ const sql = require("mssql");
 require('dotenv').config(); 
 
 async function initializeTable(){
-    try{
+    try {
         console.log('Checking tables..');
-        const masterConfig = {
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            server: process.env.DB_SERVER,
-            options: {
-                encrypt: process.env.DB_ENCRYPT === 'true',
-                trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE === 'true'
-            }
-        };
-        let pool = await sql.connect(masterConfig);
-
-        await pool.request().query(`
-            IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'StickyNotesDB')
-            BEGIN
-            CREATE DATABASE StickyNotesDB;
-            END
-            `)
-
-            await pool.close();
         
         const dbconfig = {
             user: process.env.DB_USER,  // Change to your SQL Server username
@@ -35,7 +16,7 @@ async function initializeTable(){
             }
         };
 
-         pool = await sql.connect(dbconfig);
+         const pool = await sql.connect(dbconfig);
 
         //Create Users table
          await pool.request().query(`
@@ -57,8 +38,8 @@ async function initializeTable(){
             user_id INT NOT NULL,
             title NVARCHAR(255) NOT NULL,
             content TEXT NOT NULL,
-            cardcolor NVARCHAR(20),
-            textcolor NVARCHAR(20),
+            card_color NVARCHAR(20),
+            text_color NVARCHAR(20),
             positionLeft FLOAT(50),
             positionTop FLOAT(50),
             FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
