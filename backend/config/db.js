@@ -23,4 +23,4 @@ const pool = new sql.ConnectionPool(dbconfig)
         process.exit(1); // Exit process if DB connection fails
     });
 
-module.exports = { pool, sql }; // ✅ Ensure sql is exported
+module.exports = { pool, sql }; 

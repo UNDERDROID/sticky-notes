@@ -113,7 +113,7 @@ $('#logoutBtn').click(function () {
 
 async function loadNotes() {
     try{
-        const response = await fetchWithAuth(`${API_URL}/notes`);
+        const response = await fetchWithAuth(`${API_URL}/api/notes/getNotes`);
         notes = await response.json();
          console.log(notes);
         // notes = await getAllNotes();
@@ -264,7 +264,7 @@ async function addNewNote(note){
     }
     
     try{
-        const response = await fetchWithAuth(`${API_URL}/notes`, {
+        const response = await fetchWithAuth(`${API_URL}/api/notes/createNote`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(noteData)
@@ -341,7 +341,7 @@ function renderNote(note){
 
         debounceTimers[timerKey] = setTimeout(async() => {
             try{
-        const response = await fetch(`${API_URL}/notes/title/${id}`, {
+        const response = await fetch(`${API_URL}/api/notes/updateTitle/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -373,7 +373,7 @@ if(noteIndex!==-1){
 
     debounceTimers[timerKey] = setTimeout(async()=>{
         try{
-            const response = await fetch(`${API_URL}/notes/content/${id}`, {
+            const response = await fetch(`${API_URL}/api/notes/updateContent/${id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-type': 'application/json'
@@ -405,7 +405,7 @@ if(noteIndex!==-1){
 
     debounceTimers[timerKey] = setTimeout (async() =>{
         try{
-    const response = await fetch(`${API_URL}/notes/position/${id}`, {
+    const response = await fetch(`${API_URL}/api/notes/updatePosition/${id}`, {
         method: 'PUT',
         headers: {
             'Content-type': 'application/json'
@@ -426,7 +426,7 @@ if(noteIndex!==-1){
 
 async function removeNote(id){
 try{
- const response = await fetch(`${API_URL}/notes/${id}`,{
+ const response = await fetch(`${API_URL}/api/notes/deleteNote/${id}`,{
     method: 'DELETE'
  });
  if(!response.ok) throw new Error('Failed to delete note')

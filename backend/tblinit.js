@@ -38,8 +38,8 @@ async function initializeTable(){
             user_id INT NOT NULL,
             title NVARCHAR(255) NOT NULL,
             content TEXT NOT NULL,
-            cardcolor NVARCHAR(20),
-            textcolor NVARCHAR(20),
+            card_color NVARCHAR(20),
+            text_color NVARCHAR(20),
             positionLeft FLOAT(50),
             positionTop FLOAT(50),
             FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
