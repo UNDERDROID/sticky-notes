@@ -111,9 +111,9 @@ $('#logoutBtn').click(function () {
 });
 
 
-async function loadNotes() {
+async function loadNotes(id) {
     try{
-        const response = await fetchWithAuth(`${API_URL}/api/notes/getNotes`);
+        const response = await fetchWithAuth(`${API_URL}/api/notes/getNotes/${id}`);
         notes = await response.json();
          console.log(notes);
         // notes = await getAllNotes();

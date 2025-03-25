@@ -3,7 +3,7 @@ const router = express.Router();
 const noteController = require('../controllers/noteController');
 
 router.post("/createNote", noteController.createNote);
-router.get("/getNotes", noteController.getAllNotes);
+router.get("/getNotes/:id", noteController.getAllNotes);
 router.put("/updateTitle/:id", noteController.updateTitle);
 router.put("/updateContent/:id", noteController.updateContent);
 router.put("/updatePosition/:id", noteController.updateNotePosition);
