@@ -21,8 +21,16 @@ async function initApp() {
 
         setupPreviewNote();
         
-
         $notesContainer.droppable();
+        
+        $('#create').on('touchstart click', ()=>{
+            $('#add-container').css('display', 'flex');
+        })
+
+        $('#notes-container').on('touchstart', ()=>{
+            $('#add-container').css('display', 'none');
+        })
+
     } catch (error) {
         console.error('Failed to initialize app:', error);
     }
@@ -51,9 +59,46 @@ function setupPreviewNote(){
 
 }
 
+// Improved mobile textarea interaction
+$('body').on('touchstart', 'textarea', function(e) {
+    // Ensure the textarea gets focus
+    $(this).focus();
+
+    // Prevent default touch behavior that might interfere with cursor placement
+    e.preventDefault();
+
+    // If text is already present, try to place cursor at touch point
+    const textarea = this;
+    const touch = e.originalEvent.touches[0];
+    
+    // Use setTimeout to ensure focus is set before attempting cursor placement
+    setTimeout(() => {
+        if (document.caretPositionFromPoint) {
+            // Modern browsers
+            const range = document.caretPositionFromPoint(touch.clientX, touch.clientY);
+            if (range) {
+                textarea.setSelectionRange(range.offset, range.offset);
+            }
+        } else if (document.caretRangeFromPoint) {
+            // Webkit-based browsers
+            const range = document.caretRangeFromPoint(touch.clientX, touch.clientY);
+            if (range) {
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+        }
+    }, 0);
+});
+
+// Prevent scrolling when interacting with textareas
+$('body').on('touchmove', 'textarea', function(e) {
+    if ($(this).prop('scrollHeight') > $(this).prop('clientHeight')) {
+        e.stopPropagation();
+    }
+});
+
 function previewNote(){
-
-
     $addContainer.html(`<div class="sticky-note" id="preview-note" style="background-color: ${previewNoteData.cardcolor}">
             <div class="sticky-note-header">
                 <textarea class="pre-sticky-note-title" placeholder="Title" style="color: ${previewNoteData.textcolor}"></textarea>
@@ -156,6 +201,7 @@ function addNewNote(note){
     })
 }
 
+
 function renderNote(note){
     const $noteElement = $(`
         <div class="sticky-note" id="note-${note.id}" style="background-color: ${note.cardcolor}">
@@ -177,11 +223,13 @@ function renderNote(note){
         $noteElement.draggable({
             containment: 'parent',
             stack: '.sticky-note',
+            cancel: 'textarea',
             stop: function(event, ui){
+                $(this).css('cursor');
                 const id =$(this).attr('id').replace('note-', '');
                 updateNotePosition(id, ui.position.left, ui.position.top);
             }
-        });
+        })
 
         $noteElement.find('.sticky-note-title').on('input', function(){
             const id = $(this).data('id').toString();
@@ -193,7 +241,7 @@ function renderNote(note){
             updateNoteContent(id, $(this).val());
         })
 
-        $noteElement.find('.delete-note').on('click', function(){
+        $noteElement.find('.delete-note').on('click touchstart', function(){
             const id = $(this).data('id');
             removeNote(id);
         })

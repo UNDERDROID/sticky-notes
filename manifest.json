@@ -1,0 +1,40 @@
+{
+    "name": "Sticky Notes+",
+    "short_name": "StickyNotes+",
+    "description": "A simple sticky notes app with offline support",
+    "start_url": "https://7aed-2404-7c00-81-3435-ad0c-e605-77e8-a4ea.ngrok-free.app/index.html",
+    "scope": "https://7aed-2404-7c00-81-3435-ad0c-e605-77e8-a4ea.ngrok-free.app  ",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#ffcc80",
+    "orientation": "any",
+    "icons": [
+      {
+        "src": "icons/icon.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "maskable any"
+      },
+      {
+        "src": "icons/icon.png",
+        "sizes": "512x512",
+        "type": "image/png",
+        "purpose": "maskable any"
+      }
+    ],
+    "screenshots": [
+  {
+    "src": "/screenshots/wide.jpg",
+    "sizes": "1200x800",
+    "type": "image/jpg",
+    "form_factor": "wide"
+  },
+  {
+    "src": "/screenshots/mobile.jpg",
+    "sizes": "800x1200",
+    "type": "image/jpg"
+  }
+]
+
+  }
+  

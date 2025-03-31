@@ -16,6 +16,11 @@ function initDB(){
             db= event.target.result;
             console.log('Database opened');
             resolve(db);
+
+            //Sync unsaved notes when online
+            if(navigator.onLine){
+                syncOfflineNotes();
+            }
         };
 
         request.onupgradeneeded = (event)=>{
@@ -84,3 +89,32 @@ function deleteNote(id) {
         };
     });
 }
+
+// Cache unsaved notes locally (for offline mode)
+function cacheNoteOffline(note) {
+    let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || [];
+    offlineNotes.push(note);
+    localStorage.setItem('offlineNotes', JSON.stringify(offlineNotes));
+}
+
+// Cache deleted note IDs locally (for offline mode)
+function cacheDeleteOffline(id) {
+    let offlineDeletes = JSON.parse(localStorage.getItem('offlineDeletes')) || [];
+    offlineDeletes.push(id);
+    localStorage.setItem('offlineDeletes', JSON.stringify(offlineDeletes));
+}
+
+// Sync offline notes when online
+function syncOfflineNotes() {
+    let offlineNotes = JSON.parse(localStorage.getItem('offlineNotes')) || [];
+    let offlineDeletes = JSON.parse(localStorage.getItem('offlineDeletes')) || [];
+
+    offlineNotes.forEach((note) => saveNote(note));
+    offlineDeletes.forEach((id) => deleteNote(id));
+
+    localStorage.removeItem('offlineNotes');
+    localStorage.removeItem('offlineDeletes');
+}
+
+// Listen for online status to sync data
+window.addEventListener('online', syncOfflineNotes);
