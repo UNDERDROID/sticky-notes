@@ -1,0 +1,16 @@
+{
+  "name": "StickyNotes+",
+  "short_name": "StickyNotes",
+  "description": "Login and save your notes using StickyNotes+ with offline support.",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffcc00",
+  "icons": [
+    {
+      "src": "icons/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ] 
+}
