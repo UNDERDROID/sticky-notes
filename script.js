@@ -29,6 +29,11 @@ async function initApp() {
         // Load saved notes
         await loadNotes();
 
+        // Sync notes
+        window.addEventListener('online', syncNotes);
+
+        await syncNotes();
+
         setupPreviewNote();
         $('.validation-icon-title-validation').hide();
         $('.validation-icon-content-validation').hide();        
@@ -260,7 +265,15 @@ async function addNewNote(note){
         positionLeft: Math.random() * ($notesContainer.width() - 220) + 10,
         positionTop: Math.random() * (400 - 220) + 10,
         cardcolor: note.cardcolor,
-        textcolor: note.textcolor
+        textcolor: note.textcolor,
+        isSynced: navigator.onLine
+    };
+
+    if(!navigator.onLine){
+        console.log("Offline: saving note in indexedDB");
+        await saveNote(noteData);
+        renderNote(noteData);
+        return;
     }
     
     try{
@@ -281,6 +294,29 @@ async function addNewNote(note){
         renderNote(savedNote);
     }catch(error){
         console.log('Error saving note:', error);
+    }
+}
+
+async function syncNotes() {
+    if(!navigator.onLine) return;
+
+    const unsyncedNotes = await getAllNotes(); //Get notes from indexedDB
+    if(unsyncedNotes.length === 0) return;
+
+    for(const note of unsyncedNotes){
+        try{
+            const response = await fetchWithAuth(`${API_URL}/api/notes/createNote`, {
+                method: 'POST',
+                headers: { 'Content-type': 'application/json' },
+                body: JSON.stringify(note)
+            });
+            if(response.ok) {
+                await deleteNote(note.id); //remove from indexedDB if posted in MSSQL
+                console.log(`Note synced:${note.title}`);
+            }
+        }catch(error){
+            console.error(`Failed to sync note: ${note.title}`, error);
+        }
     }
 }
 
