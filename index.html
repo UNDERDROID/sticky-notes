@@ -4,22 +4,87 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sticky Notes +</title>
+
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.1/spectrum.min.css">
     <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <meta name="theme-color" content="#ffcc00">
 
     <script>
-      if("serviceWorker" in navigator){
-        navigator.serviceWorker.register("/service-worker.js")
-        .then((reg) => console.log("Service worker registered", reg))
-        .catch((err) => console.log("Service worker Failed", err));
-      }
-    </script>
+       if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then((registration) => {
+                console.log('Service Worker registered successfully:', registration.scope);
+            })
+            .catch((error) => {
+                console.log('Service Worker registration failed:', error);
+            });
+    });
 
+      let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent the mini-infobar from appearing
+    e.preventDefault();
+    
+    // Stash the event so it can be triggered later
+    deferredPrompt = e;
+    
+    // Optionally, show an install button or notification
+    showInstallPromotion();
+});
+
+function showInstallPromotion() {
+  if($('.install-btn')){
+    return;
+  }
+
+    // Create an install button
+    const installButton = document.createElement('button');
+    installButton.textContent = 'Install App';
+    installButton.classList.add('install-btn');
+    installButton.addEventListener('click', installApp);
+    
+    // Add the button to your UI
+    document.body.appendChild(installButton);
+}
+
+async function installApp() {
+    if (deferredPrompt) {
+        // Show the install prompt
+        deferredPrompt.prompt();
+        
+        // Wait for the user to respond to the prompt
+        const { outcome } = await deferredPrompt.userChoice;
+        
+        if (outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+        } else {
+            console.log('User dismissed the install prompt');
+        }
+        
+        // Clear the deferredPrompt
+        deferredPrompt = null;
+    }
+}
+
+// Optional: Handle app installed event
+window.addEventListener('appinstalled', (evt) => {
+    console.log('App was successfully installed');
+});
+}
+    </script>
+    <script src="db.js"></script>
+    <script type="module" src="script.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.1/spectrum.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -28,6 +93,9 @@
 <body>
   <div class="app-container">
     <header>
+      <div class="controls">
+        <button id="create"><i class="fa-solid fa-circle-plus"></i></button>
+      </div>
         <div class="title">Sticky Notes+</div>
         <button id="logoutBtn" class="logout-btn">
           <i class="fas fa-sign-out-alt"></i> Logout
@@ -39,7 +107,6 @@
     </div>
 </div>
 
-  <script src="db.js"></script>
-    <script type="module" src="script.js"></script>
+
 </body>
 </html>

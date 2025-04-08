@@ -1,39 +1,65 @@
-const CACHE_NAME="sticky-notes+-cache-v1";
-const ASSETS_TO_CACHE=[
+// const { response } = require("express");
+
+const CACHE_NAME = "sticky-notes-phase3-cache-v5";
+const urlsToCache = [
   "/",
   "/index.html",
-  "/db.js",
+  "/style.css",
   "/script.js",
-  "/styles.css",
+  "/db.js",
+  "/login.html",
+  "/register.html",
+  "/login-styles.css",
+  "/register-styles.css",
+  "/auth.js",
   "/manifest.json",
-  "/icons/icon.png"
+  "https://code.jquery.com/jquery-3.6.0.min.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css",
+  "https://code.jquery.com/ui/1.12.1/jquery-ui.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.1/spectrum.min.css",
+  "https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.1/spectrum.min.js",
+  "https://cdn.jsdelivr.net/npm/sweetalert2@11",
+  "https://cdn.jsdelivr.net/npm/toastify-js",
+  "https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css"
+
 ];
 
-//Install service worker
-self.addEventListener("install", (event) => {
+// Skip the secure origin check
+self.addEventListener('install', event => {
+  // Bypass the default security checks
+  self.skipWaiting();
+  
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache)=>{
-      return cache.addAll(ASSETS_TO_CACHE);
+    caches.open(CACHE_NAME).then(cache => {
+      console.log('Attempting to cache files in development mode...');
+      return cache.addAll(urlsToCache)
+        .then(() => console.log('Cached successfully'))
+        .catch(err => console.error('Caching failed:', err));
     })
   );
 });
 
-//Fetch Requests
-self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request);
-    })
-  );
+self.addEventListener('activate', event => {
+  // Immediately take control of the page
+  event.waitUntil(self.clients.claim());
 });
 
-//Activate Service Worker & Remove Old Caches
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.filter((name)=> name!==CACHE_NAME).map((name)=> caches.delete(name))
-      );
-    })
-  );
+self.addEventListener('fetch', event => {
+ if(event.request.url.includes('/api/')){
+  return fetch(event.request);
+ }
+
+ event.respondWith(
+  caches.match(event.request).then(response=>{
+    if(response){
+      console.log('Serving from cache:',event.request.url);
+      return response
+    }
+
+    console.log('Fetching from network:', event.request.url);
+    return fetch(event.request);
+  })
+ )
 });
+

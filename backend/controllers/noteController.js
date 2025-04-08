@@ -16,7 +16,7 @@ async function getAllNotes(req, res){
 }
 
  async function createNote(req, res) {
-    const{title, content, cardcolor, textcolor, positionLeft, positionTop } = req.body;
+    const{id, title, content, cardcolor, textcolor, positionLeft, positionTop } = req.body;
     if(!title || !content){
         res.status(400).json({error: 'Title and content are required'});
     }
@@ -26,9 +26,7 @@ async function getAllNotes(req, res){
         if(!token) return res.status(401).json({error: 'Unauthorized'})
         const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
         const user_id = decoded.userId;
-        
-        const id = Date.now().toString();
-
+    
         const noteData = {
             id, 
             title, 
@@ -43,8 +41,13 @@ async function getAllNotes(req, res){
        await noteModel.postNote(id, title, content, cardcolor, textcolor, positionLeft, positionTop, user_id);
 
             res.status(201).json(noteData);
-    }catch(error){
-        res.status(500).send(error.message);
+    }catch(jwtError){
+        //Specifically handle token expiration error
+        if (jwtError instanceof jwt.TokenExpiredError){
+            return res.status(401).json({error: 'Token expired'});
+        }
+        //Handle other JWT errors
+        return res.status(401).json({error: 'Invalid token'});
     }
 };
 
@@ -63,7 +66,6 @@ async function updateTitle(req, res){
             res.status(500).send(error.message);
         }
 }
-
 
 //Update note content
 async function updateContent(req, res){

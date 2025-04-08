@@ -1,5 +1,6 @@
 $(document).ready(function () {
-    const API_URL = "http://localhost:3000";
+
+    const API_URL = 'http://localhost:3000';
 
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
@@ -44,6 +45,7 @@ $(document).ready(function () {
         const password = $('#loginPassword').val();
 
         try {
+            console.log("API", API_URL);
             const response = await fetch(`${API_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

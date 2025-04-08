@@ -8,6 +8,8 @@ const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const session = require("express-session");
 const initializeTable = require("./tblinit");
+const os = require("os");
+const interfaces = os.networkInterfaces();
 require('dotenv').config(); 
 
 const app = express();
@@ -17,7 +19,12 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 const corsOptions = {
-    origin: ['http://127.0.0.1:5500','http://localhost:5500'],
+    origin: [
+        'http://127.0.0.1:5500', 
+        'http://localhost:5500', 
+        'https://smooth-lizards-care.loca.lt',
+        'https://a3f4-202-166-217-15.ngrok-free.app'
+    ],
     credentials: true,
     optionSuccessStatus: 200
 }
@@ -27,7 +34,6 @@ app.use(express.json());
 
 const authRoutes = require("./routes/authRoutes");
 const noteRoutes = require("./routes/noteRoutes");
-
 
 const dbconfig = {
     user: process.env.DB_USER,  // Change to your SQL Server username

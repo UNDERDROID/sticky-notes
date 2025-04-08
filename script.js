@@ -4,6 +4,13 @@
 const $notesContainer = $('#notes-container');
 const $addContainer = $('#add-container');
 const API_URL = 'http://localhost:3000';
+const REFRESH_URL = `${API_URL}/refresh`;
+const GET_NOTES_URL = `${API_URL}/api/notes/getNotes`;
+const CREATE_NOTE_URL = `${API_URL}/api/notes/createNote`;
+const UPDATE_TITLE_URL = `${API_URL}/api/notes/updateTitle`;
+const UPDATE_CONTENT_URL = `${API_URL}/api/notes/updateContent`;
+const UPDATE_POSITION_URL = `${API_URL}/api/notes/updatePosition`;
+const DELETE_NOTE_URL = `${API_URL}/api/notes/deleteNote`;
 
 // State
 let notes = [];
@@ -19,6 +26,14 @@ const debounceTimers = {};
 async function initApp() {
     try {
         const accessToken = localStorage.getItem('accessToken');
+
+        window.addEventListener('offline', () => {
+            showToast('Connection Lost', 'error');
+        });
+          
+        window.addEventListener('online', () => {
+            showToast('<i class="fa-solid fa-wifi" style="margin-right: 8px;"></i> Back Online', 's');
+        });
 
         if(!accessToken){
             window.location.href='login.html';
@@ -36,7 +51,18 @@ async function initApp() {
 
         setupPreviewNote();
         $('.validation-icon-title-validation').hide();
-        $('.validation-icon-content-validation').hide();        
+        $('.validation-icon-content-validation').hide();   
+        
+        $('#create').on('touchstart click', ()=>{
+        $('#add-container').css('display', 'flex');
+        })
+
+        $('#notes-container').on('touchstart', ()=>{
+            $('#add-container').css('display', 'none');
+            setupPreviewNote();
+            $('.validation-icon-title-validation').hide();
+            $('.validation-icon-content-validation').hide();   
+        })
 
         $notesContainer.droppable();
     } catch (error) {
@@ -49,13 +75,15 @@ async function fetchWithAuth(url, options = {}){
 
     options.headers = {
         ...options.headers,
-        "Authorization": `Bearer ${accessToken}`
+        "Authorization": `Bearer ${accessToken}`,
+        'ngrok-skip-browser-warning': 'true'
+
     };
 
     let response = await fetch(url, options);
 
     //If access token is expired
-    if(response.status === 401|| response.status === 500){
+    if(response.status === 401 || response.status === 500){
         console.log('Access token expired. Refreshing...');
 
         const refreshSuccess = await refreshAccessToken();
@@ -78,10 +106,11 @@ async function fetchWithAuth(url, options = {}){
 }
 
 async function refreshAccessToken(){
+    console.log("==refreshAccessToken==");
     try{
         const refreshToken = localStorage.getItem('refreshToken');
         
-        const response = await fetch(`${API_URL}/refresh`,{
+        const response = await fetch(REFRESH_URL,{
             method: 'POST',
             headers: {
                 'Content-type': 'application/json'
@@ -116,18 +145,30 @@ $('#logoutBtn').click(function () {
 });
 
 
-async function loadNotes(id) {
+async function loadNotes() {
     try{
-        const response = await fetchWithAuth(`${API_URL}/api/notes/getNotes/${id}`);
-        notes = await response.json();
-         console.log(notes);
-        // notes = await getAllNotes();
-    
-    $.each(notes, (index, note)=>{
-        renderNote(note);
-    })
-    }catch(error){
+        const accessToken = localStorage.getItem('accessToken');
+        const response = await fetchWithAuth(GET_NOTES_URL);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Server error:', response.status, errorText);
+            throw new Error(`Server returned ${response.status}: ${errorText.substring(0, 100)}...`);
+        }
+        
+        const responseText = await response.text();
+        try {
+            notes = JSON.parse(responseText);
+            $.each(notes, (index, note) => {
+                renderNote(note);
+            });
+        } catch (e) {
+            console.error('Failed to parse response as JSON:', responseText.substring(0, 200));
+            throw new Error('Invalid JSON response');
+        }
+    } catch(error) {
         console.error('Error loading notes', error);
+        showToast("Error loading notes", "error");
     }   
 }
 
@@ -146,11 +187,13 @@ function previewNote(){
     $addContainer.html(`<div class="sticky-note" id="preview-note" style="background-color: ${previewNoteData.cardcolor}">
             <div class="sticky-note-header">
                 <textarea class="pre-sticky-note-title" placeholder="Title" style="color: ${previewNoteData.textcolor}"></textarea>
-                <span class="validation-icon-title-validation" title="Title cannot be empty"><i class="fas fa-exclamation-circle" style="color: red;"></i>
+                <span class="validation-icon-title-validation" title="Title cannot be empty">
+                <i class="fas fa-exclamation-circle" id="title-error" style="color: red;"></i>
 </span>
             </div>
             <textarea class="pre-sticky-note-content" placeholder="Content"></textarea>
-            <span class="validation-icon-content-validation" title="Content cannot be empty"><i class="fas fa-exclamation-circle" style="color: red;"></i></span>
+            <span class="validation-icon-content-validation" title="Content cannot be empty">
+            <i class="fas fa-exclamation-circle" style="color: red;"></i></span>
         </div>
         <div class="button-container">
             <input type="text" id="card-color-picker" class="color-picker">
@@ -246,7 +289,7 @@ function previewNote(){
                 })
             }
         if(previewNoteData.title.trim()!=='' && previewNoteData.content.trim()!==''){
-            refreshAccessToken();
+           
             addNewNote(previewNoteData);
             setupPreviewNote();
             $('.validation-icon-title-validation').hide();
@@ -258,26 +301,25 @@ function previewNote(){
 }
 
 async function addNewNote(note){
+    const id = Date.now().toString();
     const noteData = {
-        id: Date.now().toString(),
+        id: id,
         title: note.title,
         content: note.content,
-        positionLeft: Math.random() * ($notesContainer.width() - 220) + 10,
-        positionTop: Math.random() * (400 - 220) + 10,
+        positionLeft: Math.random() * (90 - 5) + 5,
+        positionTop: Math.random() * (90 - 5) + 5,
         cardcolor: note.cardcolor,
         textcolor: note.textcolor,
         isSynced: navigator.onLine
     };
 
-    if(!navigator.onLine){
-        console.log("Offline: saving note in indexedDB");
-        await saveNote(noteData);
-        renderNote(noteData);
-        return;
-    }
+    try{ 
     
-    try{
-        const response = await fetchWithAuth(`${API_URL}/api/notes/createNote`, {
+        await saveNote(noteData).then(()=>{
+            renderNote(noteData);
+        });
+    
+        const response = await fetchWithAuth(CREATE_NOTE_URL, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(noteData)
@@ -286,41 +328,120 @@ async function addNewNote(note){
         if(!response.ok){
             throw new Error(`Failed to save note: ${response.statusText}`);
         }
-
-        const savedNote = await response.json();
         
         notes.push(savedNote);
         console.log('Saved Note:', savedNote);
         renderNote(savedNote);
+
+        return response;
     }catch(error){
         console.log('Error saving note:', error);
+        return {ok: false, reason: 'error', error};
     }
 }
 
 async function syncNotes() {
     if(!navigator.onLine) return;
+    try{
+        const localNotes = await getAllNotes();
 
-    const unsyncedNotes = await getAllNotes(); //Get notes from indexedDB
-    if(unsyncedNotes.length === 0) return;
+        const response = await fetchWithAuth(GET_NOTES_URL);
 
-    for(const note of unsyncedNotes){
-        try{
-            const response = await fetchWithAuth(`${API_URL}/api/notes/createNote`, {
-                method: 'POST',
-                headers: { 'Content-type': 'application/json' },
-                body: JSON.stringify(note)
-            });
-            if(response.ok) {
-                await deleteNote(note.id); //remove from indexedDB if posted in MSSQL
-                console.log(`Note synced:${note.title}`);
-            }
-        }catch(error){
-            console.error(`Failed to sync note: ${note.title}`, error);
+        let serverNotes = [];
+        if(response.ok){
+        serverNotes = await response.json();
         }
+
+        const localMap = new Map(localNotes.map(note => [note.id, note]));
+        const serverMap = new Map(serverNotes.map(note => [note.id, note]));
+
+        for(const localNote of localNotes){
+            if(!serverMap.has(localNote.id)){
+                await fetchWithAuth(CREATE_NOTE_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(localNote),
+                })
+            }
+        }
+
+        for(const localNote of localNotes){
+            const serverNote = serverMap.get(localNote.id);
+            if(!serverNote) continue;
+
+            if(localNote.title!==serverNote.title){
+                updateNoteTitle(localNote.id, localNote.title);
+            }
+
+            if(localNote.content!==serverNote.content){
+                updateNoteContent(localNote.id, localNote.content);
+            }
+
+            if(localNote.positionLeft!==serverNote.positionLeft || localNote.positionTop!==serverNote.positionTop){
+                console.log("left:", localNote.positionLeft);
+                console.log("top:", localNote.positionTop);
+                updateNotePosition(localNote.id, localNote.positionLeft, localNote.positionTop);
+            }
+        }
+
+        const deletedIds = await getDeletedNoteIds();
+        for(const id of deletedIds){
+            await removeNote(id)
+        }
+
+        console.log("localNotes:", localNotes);
+        console.log("serverNotes:",serverNotes)
+    }catch(error){
+        console.log("Error syncing notes", error);
     }
 }
 
+// Improved mobile textarea interaction
+$('body').on('touchstart', 'textarea', function(e) {
+    // Ensure the textarea gets focus
+    $(this).focus();
+
+    // Prevent default touch behavior that might interfere with cursor placement
+    e.preventDefault();
+
+    // If text is already present, try to place cursor at touch point
+    const textarea = this;
+    const touch = e.originalEvent.touches[0];
+    
+    // Use setTimeout to ensure focus is set before attempting cursor placement
+    setTimeout(() => {
+        if (document.caretPositionFromPoint) {
+            // Modern browsers
+            const range = document.caretPositionFromPoint(touch.clientX, touch.clientY);
+            if (range) {
+                textarea.setSelectionRange(range.offset, range.offset);
+            }
+        } else if (document.caretRangeFromPoint) {
+            // Webkit-based browsers
+            const range = document.caretRangeFromPoint(touch.clientX, touch.clientY);
+            if (range) {
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+        }
+    }, 0);
+});
+
+// Prevent scrolling when interacting with textareas
+$('body').on('touchmove', 'textarea', function(e) {
+    if ($(this).prop('scrollHeight') > $(this).prop('clientHeight')) {
+        e.stopPropagation();
+    }
+});
+
 function renderNote(note){
+    if($(`#note-${note.id}`).length>0){
+        return;
+    }
+
     const $noteElement = $(`
         <div class="sticky-note" id="note-${note.id}" style="background-color: ${note.cardcolor}">
         <div class="sticky-note-header">
@@ -332,8 +453,8 @@ function renderNote(note){
         `)
         
         $noteElement.css({
-            'left': `${note.positionLeft}px`,
-            'top': `${note.positionTop}px`
+            'left': `${note.positionLeft}%`,
+            'top': `${note.positionTop}%`
         });
 
         $notesContainer.append($noteElement);
@@ -341,7 +462,9 @@ function renderNote(note){
         $noteElement.draggable({
             containment: 'parent',
             stack: '.sticky-note',
+            cancel: 'textarea',
             stop: function(event, ui){
+                $(this).css('cursor');
                 const id =$(this).attr('id').replace('note-', '');
                 updateNotePosition(id, ui.position.left, ui.position.top);
             }
@@ -357,9 +480,8 @@ function renderNote(note){
             updateNoteContent(id, $(this).val());
         })
 
-        $noteElement.find('.delete-note').on('click', function(){
-            const id = $(this).data('id');
-            removeNote(id);
+        $noteElement.find('.delete-note').on('click touchstart', function(){
+            removeNote(note.id);
         })
 }
 
@@ -376,8 +498,10 @@ function renderNote(note){
         }
 
         debounceTimers[timerKey] = setTimeout(async() => {
-            try{
-        const response = await fetch(`${API_URL}/api/notes/updateTitle/${id}`, {
+        try{
+        saveNote(notes[noteIndex]);
+
+        const response = await fetch(`${UPDATE_TITLE_URL}/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -409,7 +533,9 @@ if(noteIndex!==-1){
 
     debounceTimers[timerKey] = setTimeout(async()=>{
         try{
-            const response = await fetch(`${API_URL}/api/notes/updateContent/${id}`, {
+            saveNote(notes[noteIndex]);
+
+            const response = await fetch(`${UPDATE_CONTENT_URL}/${id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-type': 'application/json'
@@ -430,10 +556,15 @@ if(noteIndex!==-1){
 
  function updateNotePosition(id, left, top){
  const timerKey = `${id}_position`;
+ const containerWidth = $notesContainer.width();
+ const containerHeight = $notesContainer.height();
+ const leftPercent = (left / containerWidth) * 100;
+ const topPercent = (top / containerHeight) * 100;
+
  const noteIndex = notes.findIndex(note => note.id === id);
  if(noteIndex!==-1){
-    notes[noteIndex].positionLeft = left;
-    notes[noteIndex].positionTop = top;
+    notes[noteIndex].positionLeft = leftPercent;
+    notes[noteIndex].positionTop = topPercent;
 
     if(debounceTimers[timerKey]){
         clearTimeout(debounceTimers[timerKey])
@@ -441,12 +572,13 @@ if(noteIndex!==-1){
 
     debounceTimers[timerKey] = setTimeout (async() =>{
         try{
-    const response = await fetch(`${API_URL}/api/notes/updatePosition/${id}`, {
+            saveNote(notes[noteIndex]);
+    const response = await fetch(`${UPDATE_POSITION_URL}/${id}`, {
         method: 'PUT',
         headers: {
             'Content-type': 'application/json'
         },
-        body: JSON.stringify({positionLeft: left, positionTop: top})
+        body: JSON.stringify({positionLeft: leftPercent, positionTop: topPercent})
     });
 
     if(!response.ok){
@@ -462,7 +594,14 @@ if(noteIndex!==-1){
 
 async function removeNote(id){
 try{
- const response = await fetch(`${API_URL}/api/notes/deleteNote/${id}`,{
+    await deleteNote(id);
+    const removedNote = $(`#note-${id}`);
+if(removedNote){
+    await addDeletedNoteId(id);
+    removedNote.remove();
+}
+        
+ const response = await fetch(`${DELETE_NOTE_URL}/${id}`,{
     method: 'DELETE'
  });
  if(!response.ok) throw new Error('Failed to delete note')
@@ -476,6 +615,20 @@ const noteElement = $(`#note-${id}`);
 }
 }
 
-
+function showToast(html, type = "error"){
+    const div = document.createElement("div");
+    div.innerHTML=html;
+    Toastify({
+        node: div,
+        duration: 3000,
+        gravity: "top", //position top
+        position: "left",
+        style: {
+            background: type === "error" ? "#ff3e3e" : "#28a745",
+            borderRadius: "5px"
+        },
+        stopOnFocus: true, //Stop if user hovers over error
+    }).showToast();
+}
 
 $(document).ready(initApp);
