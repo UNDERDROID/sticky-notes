@@ -11,6 +11,7 @@ const UPDATE_TITLE_URL = `${API_URL}/api/notes/updateTitle`;
 const UPDATE_CONTENT_URL = `${API_URL}/api/notes/updateContent`;
 const UPDATE_POSITION_URL = `${API_URL}/api/notes/updatePosition`;
 const DELETE_NOTE_URL = `${API_URL}/api/notes/deleteNote`;
+const SYNC_NOTES_URL = `${API_URL}/api/notes/sync`
 
 // State
 let notes = [];
@@ -21,19 +22,17 @@ let colorPalette = [
     ['#ffccbc', '#d7ccc8', '#cfd8dc']
 ];
 const debounceTimers = {};
+let isOnline = navigator.onLine;
+
 
 // Initialize the application
 async function initApp() {
     try {
         const accessToken = localStorage.getItem('accessToken');
 
-        window.addEventListener('offline', () => {
-            showToast('Connection Lost', 'error');
-        });
-          
-        window.addEventListener('online', () => {
-            showToast('<i class="fa-solid fa-wifi" style="margin-right: 8px;"></i> Back Online', 's');
-        });
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
 
         if(!accessToken){
             window.location.href='login.html';
@@ -44,10 +43,11 @@ async function initApp() {
         // Load saved notes
         await loadNotes();
 
-        // Sync notes
-        window.addEventListener('online', syncNotes);
-
-        await syncNotes();
+        // await getUnsyncedNotes().then(notes => {
+        //     console.log("Unsynced Notes:", notes);
+        // }).catch(err => {
+        //     console.error("Error fetching unsynced notes", err);
+        // });
 
         setupPreviewNote();
         $('.validation-icon-title-validation').hide();
@@ -68,6 +68,19 @@ async function initApp() {
     } catch (error) {
         console.error('Failed to initialize app:', error);
     }
+}
+
+function handleOffline() {
+    isOnline = false;
+    console.log('Application is offline. Changes will be synced when online.');
+    showToast('Connection Lost', 'error');
+}
+
+function handleOnline() {
+    isOnline = true;
+    console.log('Application is back online. Syncing changes...');
+    showToast('<i class="fa-solid fa-wifi" style="margin-right: 8px;"></i> Back Online', 's');
+    syncPendingNotes();
 }
 
 async function fetchWithAuth(url, options = {}){
@@ -145,6 +158,7 @@ $('#logoutBtn').click(function () {
 });
 
 
+
 async function loadNotes() {
     try{
         const accessToken = localStorage.getItem('accessToken');
@@ -168,7 +182,7 @@ async function loadNotes() {
         }
     } catch(error) {
         console.error('Error loading notes', error);
-        showToast("Error loading notes", "error");
+        showToast(`Error loading notes:${error}`, "error");
     }   
 }
 
@@ -310,14 +324,27 @@ async function addNewNote(note){
         positionTop: Math.random() * (90 - 5) + 5,
         cardcolor: note.cardcolor,
         textcolor: note.textcolor,
-        isSynced: navigator.onLine
+        updatedAt: new Date().toISOString(),
+        isSynced: navigator.onLine,
+        isDeleted: false,
     };
 
     try{ 
-    
         await saveNote(noteData).then(()=>{
+            notes.push(noteData);
             renderNote(noteData);
         });
+        const noteIndex = notes.findIndex(note => note.id === noteData.id);
+
+        if(!navigator.onLine){
+                if(!notes[noteIndex].syncOperations){
+                    notes[noteIndex].syncOperations=[];
+                }
+                if(!notes[noteIndex].syncOperations.includes('create')){
+                    notes[noteIndex].syncOperations.push('create');
+                }
+                await saveNote(notes[noteIndex]);
+        }
     
         const response = await fetchWithAuth(CREATE_NOTE_URL, {
             method: 'POST',
@@ -329,9 +356,7 @@ async function addNewNote(note){
             throw new Error(`Failed to save note: ${response.statusText}`);
         }
         
-        notes.push(savedNote);
-        console.log('Saved Note:', savedNote);
-        renderNote(savedNote);
+        console.log('Saved Note:', notes);
 
         return response;
     }catch(error){
@@ -340,63 +365,14 @@ async function addNewNote(note){
     }
 }
 
-async function syncNotes() {
-    if(!navigator.onLine) return;
-    try{
-        const localNotes = await getAllNotes();
+function getLatestDate(date1, date2){
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
 
-        const response = await fetchWithAuth(GET_NOTES_URL);
-
-        let serverNotes = [];
-        if(response.ok){
-        serverNotes = await response.json();
-        }
-
-        const localMap = new Map(localNotes.map(note => [note.id, note]));
-        const serverMap = new Map(serverNotes.map(note => [note.id, note]));
-
-        for(const localNote of localNotes){
-            if(!serverMap.has(localNote.id)){
-                await fetchWithAuth(CREATE_NOTE_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(localNote),
-                })
-            }
-        }
-
-        for(const localNote of localNotes){
-            const serverNote = serverMap.get(localNote.id);
-            if(!serverNote) continue;
-
-            if(localNote.title!==serverNote.title){
-                updateNoteTitle(localNote.id, localNote.title);
-            }
-
-            if(localNote.content!==serverNote.content){
-                updateNoteContent(localNote.id, localNote.content);
-            }
-
-            if(localNote.positionLeft!==serverNote.positionLeft || localNote.positionTop!==serverNote.positionTop){
-                console.log("left:", localNote.positionLeft);
-                console.log("top:", localNote.positionTop);
-                updateNotePosition(localNote.id, localNote.positionLeft, localNote.positionTop);
-            }
-        }
-
-        const deletedIds = await getDeletedNoteIds();
-        for(const id of deletedIds){
-            await removeNote(id)
-        }
-
-        console.log("localNotes:", localNotes);
-        console.log("serverNotes:",serverNotes)
-    }catch(error){
-        console.log("Error syncing notes", error);
-    }
+    return d1.getTime() > d2.getTime();
 }
+
+
 
 // Improved mobile textarea interaction
 $('body').on('touchstart', 'textarea', function(e) {
@@ -491,6 +467,18 @@ function renderNote(note){
 
     if(noteIndex!==-1){
         notes[noteIndex].title=newTitle;
+        notes[noteIndex].updatedAt= new Date(Date.now());
+
+        if(!navigator.onLine){
+            notes[noteIndex].isSynced=false;
+            if(!notes[noteIndex].syncOperations){
+            notes[noteIndex].syncOperations=[];
+            }
+            if (!notes[noteIndex].syncOperations.includes('title')) {
+                notes[noteIndex].syncOperations.push('title');
+                console.log("notes:", notes);
+            }
+        }
 
         //Clear any existing timeouts for this note
         if(debounceTimers[timerKey]){
@@ -526,6 +514,19 @@ const noteIndex = notes.findIndex(note => note.id === id);
 
 if(noteIndex!==-1){
     notes[noteIndex].content=newContent;
+    notes[noteIndex].updatedAt= new Date(Date.now());
+
+    if(!navigator.onLine){
+        notes[noteIndex].isSynced=false;
+        if(!notes[noteIndex].syncOperations){
+            notes[noteIndex].syncOperations=[];
+        }
+        if(!notes[noteIndex].syncOperations.includes('content')){
+            notes[noteIndex].syncOperations.push('content');
+        }
+    }
+
+  
 
     if(debounceTimers[timerKey]){
         clearTimeout(debounceTimers[timerKey]);
@@ -565,6 +566,17 @@ if(noteIndex!==-1){
  if(noteIndex!==-1){
     notes[noteIndex].positionLeft = leftPercent;
     notes[noteIndex].positionTop = topPercent;
+    notes[noteIndex].updatedAt= new Date(Date.now());
+
+    if(!navigator.onLine){
+        notes[noteIndex].isSynced=false;
+        if(!notes[noteIndex].syncOperations){
+            notes[noteIndex].syncOperations=[]
+        }
+        if(!notes[noteIndex].syncOperations.includes('position')){
+            notes[noteIndex].syncOperations.push('position');
+        }
+    }
 
     if(debounceTimers[timerKey]){
         clearTimeout(debounceTimers[timerKey])
@@ -594,22 +606,37 @@ if(noteIndex!==-1){
 
 async function removeNote(id){
 try{
-    await deleteNote(id);
-    const removedNote = $(`#note-${id}`);
-if(removedNote){
-    await addDeletedNoteId(id);
-    removedNote.remove();
-}
+    const noteIndex = notes.findIndex(note=>note.id===id);
+    console.log(notes);
+    console.log(noteIndex);
+    if(noteIndex !== -1){
+        notes[noteIndex].isDeleted=true;
+        if(!navigator.onLine){
+                notes[noteIndex].isSynced=false;
+                if(!notes[noteIndex].syncOperations){
+                    notes[noteIndex].syncOperations=[]
+                }
+                if(!notes[noteIndex].syncOperations.includes('delete')){
+                    notes[noteIndex].syncOperations.push('delete');
+                }
+            
+        }
+        await saveNote(notes[noteIndex]);
+    }
+
+        const noteElement = $(`#note-${id}`);
+        if (noteElement) {
+            noteElement.remove();
+        }
         
  const response = await fetch(`${DELETE_NOTE_URL}/${id}`,{
-    method: 'DELETE'
+    method: 'PUT'
  });
  if(!response.ok) throw new Error('Failed to delete note')
-const noteElement = $(`#note-${id}`);
- if(noteElement){
-    noteElement.remove();
-    console.log('Removed ')
- }
+
+        
+            
+            console.log('Note successfully deleted');
 }catch(error){
     console.error('Error deleting note', error);
 }
@@ -631,4 +658,70 @@ function showToast(html, type = "error"){
     }).showToast();
 }
 
+async function syncPendingNotes(){
+    const unsyncedNotes = await getUnsyncedNotes()
+    console.log("to sync:",unsyncedNotes);
+
+    if(unsyncedNotes.length === 0){
+        console.log('No notes to sync');
+        return;
+    }
+
+    console.log(`Syncing ${unsyncedNotes.length} notes...`);
+    
+    // Process each unsynced note
+    for (const note of unsyncedNotes) {
+        try {
+            await syncNoteToServer(note);
+            console.log("syncing...");
+        } catch (error) {
+            console.error(`Failed to sync note ${note.id}:`, error);
+        }
+    }
+}
+
+async function syncNoteToServer(note){
+    if (!note.syncOperations || note.syncOperations.length === 0 || !isOnline) {
+        console.log("Not synced because offline");
+        return;
+    }
+
+    try {
+        const response = await fetchWithAuth(`${SYNC_NOTES_URL}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                id: note.id,
+                title: note.title,
+                content: note.content,
+                cardcolor: note.cardcolor,
+                textcolor: note.textcolor,
+                positionLeft: note.positionLeft,
+                positionTop: note.positionTop,
+                user_id: note.user_id,
+                syncOperations: note.syncOperations
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to sync note: ${response.statusText}`);
+        }
+        
+        // Update the note's sync status
+        const noteIndex = notes.findIndex(n => n.id === note.id);
+        if (noteIndex !== -1) {
+            notes[noteIndex].isSynced = true;
+            notes[noteIndex].syncOperations = [];
+            saveNote(notes[noteIndex]); // Update in IndexedDB
+        }
+        
+        console.log(`Note ${note.id} synced successfully`);
+        return await response.json();
+    } catch (error) {
+        console.error('Error syncing note:', error);
+        throw error;
+    }
+}
 $(document).ready(initApp);

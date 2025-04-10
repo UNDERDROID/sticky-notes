@@ -1,4 +1,6 @@
 const noteModel = require("../models/noteModel");
+const {pool, sql} = require("../config/db");
+
 const jwt = require("jsonwebtoken");
 
 async function getAllNotes(req, res){
@@ -109,11 +111,78 @@ async function deleteNote(req, res){
         }
 }
 
+async function updateDeletedNote(req, res) {
+    const { id } = req.params;
+    try{
+        await noteModel.updateDeletedNote(id);
+        res.status(200).json({message: 'Note deleted'});
+    }catch(error){
+        res.status(500).send(error.message);
+    }
+}
+
+async function syncNotes(req, res) {
+    const { id, title, content, cardcolor, textcolor, positionLeft, positionTop, syncOperations } = req.body;
+    
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        if(!token) return res.status(401).json({error: 'Unauthorized'})
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        const user_id = decoded.userId;
+
+        // First, check if the note exists
+        const request = (await pool).request();
+        request.input("noteId", sql.NVarChar, id);
+        // const noteResult = await request.query(`SELECT * FROM Notes WHERE id = @noteId`);
+        
+        // if (noteResult.recordset.length === 0) {
+        //     return res.status(404).json({ message: 'Note not found' });
+        // }
+        
+        // Update only the fields that need to be synced based on syncOperations
+        if(syncOperations.includes('create')){
+            await noteModel.postNote(id, title, content, cardcolor, textcolor, positionLeft ,positionTop, user_id);
+        }
+
+        if (syncOperations.includes('title')) {
+            await noteModel.updateNoteTitle(title, id);
+        }
+        
+        if (syncOperations.includes('content')) {
+            await noteModel.updateNoteContent(content, id);
+        }
+        
+        if (syncOperations.includes('position')) {
+            await noteModel.updateNotePosition(positionLeft, positionTop, id);
+        }
+
+        if (syncOperations.includes('delete')) {
+            await noteModel.updateDeletedNote(id);
+        }
+        
+        // Get the updated note to return in the response
+        const updatedNoteResult = await request.query(`SELECT * FROM Notes WHERE id = @noteId`);
+        
+        return res.status(200).json({ 
+            message: 'Note synced successfully',
+            note: updatedNoteResult.recordset[0]
+        });
+    } catch (error) {
+        console.error('Error syncing note:', error);
+        return res.status(500).json({ 
+            message: 'Failed to sync note',
+            error: error.message
+        });
+    }
+}
+
 module.exports = {
     createNote,
     getAllNotes,
     updateTitle,
     updateContent,
     updateNotePosition,
-    deleteNote
+    deleteNote,
+    updateDeletedNote,
+    syncNotes
 }

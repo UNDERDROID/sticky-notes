@@ -1,7 +1,6 @@
 const DB_NAME = 'StickyNotesDB';
-const DB_VERSION = 3;
+const DB_VERSION = 1;
 const NOTES_STORE = 'notes';
-const DELETED_NOTES_STORE = 'deletedNotes';
 let db;
 
 function initDB(){
@@ -26,10 +25,6 @@ function initDB(){
                 const store = db.createObjectStore(NOTES_STORE, { keyPath: 'id'});
                 store.createIndex('id', 'id', {unique: true});
             }
-
-            if(!db.objectStoreNames.contains(DELETED_NOTES_STORE)){
-                db.createObjectStore(DELETED_NOTES_STORE, { keyPath: 'id'});
-            }
         };
     });
 }
@@ -37,6 +32,8 @@ function initDB(){
 // Save a note to the database
 function saveNote(note) {
     return new Promise((resolve, reject) => {
+        note.updatedAt = new Date().toISOString();
+
         const transaction = db.transaction([NOTES_STORE], 'readwrite');
         const store = transaction.objectStore(NOTES_STORE);
         const request = store.put(note);
@@ -51,7 +48,6 @@ function saveNote(note) {
         };
     });
 }
-
 
 // Get all notes from the database
 function getAllNotes() {
@@ -71,6 +67,33 @@ function getAllNotes() {
     });
 }
 
+function getUnsyncedNotes(){
+    return new Promise((resolve, reject)=>{
+        const transaction = db.transaction([NOTES_STORE], 'readonly');
+        const store = transaction.objectStore(NOTES_STORE);
+        const unsyncedNotes = [];
+
+        const request = store.openCursor();
+
+        request.onsuccess = (event)=>{
+            const cursor = event.target.result;
+            
+            if(cursor){
+                const note = cursor.value;
+                if(note.isSynced===false){
+                    unsyncedNotes.push(note);
+                }
+                cursor.continue();
+            }else{
+                resolve(unsyncedNotes);
+            }
+        }
+        request.onerror = (event) =>{
+            console.error('Error while getting unsynced notes:', event);
+            reject(event);
+        }
+    })
+}
 
 // Delete a note from the database
 function deleteNote(id) {
@@ -85,53 +108,6 @@ function deleteNote(id) {
         
         request.onerror = (event) => {
             console.error('Error deleting note:', event);
-            reject(event);
-        };
-    });
-}
-
-function addDeletedNoteId(id){
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction([DELETED_NOTES_STORE], 'readwrite');
-        const store = transaction.objectStore(DELETED_NOTES_STORE);
-        const request = store.put({id});
-
-        request.onsuccess = ()=>resolve(id);
-        request.onerror = (event)=>{
-            console.error('Error adding deleted note ID:', event);
-            reject(event);
-        }
-    })
-}
-
-// Get all deleted note IDs
-function getDeletedNoteIds() {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction([DELETED_NOTES_STORE], 'readonly');
-        const store = transaction.objectStore(DELETED_NOTES_STORE);
-        const request = store.getAll();
-
-        request.onsuccess = (event) => {
-            const ids = event.target.result.map(entry => entry.id);
-            resolve(ids);
-        };
-        request.onerror = (event) => {
-            console.error('Error getting deleted note IDs:', event);
-            reject(event);
-        };
-    });
-}
-
-// Remove an ID after successful deletion on server
-function removeDeletedNoteId(id) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction([DELETED_NOTES_STORE], 'readwrite');
-        const store = transaction.objectStore(DELETED_NOTES_STORE);
-        const request = store.delete(id);
-
-        request.onsuccess = () => resolve(id);
-        request.onerror = (event) => {
-            console.error('Error removing deleted note ID:', event);
             reject(event);
         };
     });
