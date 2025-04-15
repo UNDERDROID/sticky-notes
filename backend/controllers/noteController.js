@@ -122,7 +122,7 @@ async function updateDeletedNote(req, res) {
 }
 
 async function syncNotes(req, res) {
-    const { id, title, content, cardcolor, textcolor, positionLeft, positionTop, syncOperations } = req.body;
+    const { id, ...fieldsToUpdate } = req.body;
     
     try {
         const token = req.headers.authorization?.split(" ")[1];
@@ -131,35 +131,28 @@ async function syncNotes(req, res) {
         const user_id = decoded.userId;
 
         // First, check if the note exists
+        const checkRequest = (await pool).request();
+        checkRequest.input("noteId", sql.NVarChar, id);
+        const noteResult = await checkRequest.query(`SELECT * FROM Notes WHERE id = @noteId`);
+        
+        if (noteResult.recordset.length === 0) {
+            await noteModel.postNote(
+                id, 
+                fieldsToUpdate.title, 
+                fieldsToUpdate.content, 
+                fieldsToUpdate.cardcolor, 
+                fieldsToUpdate.textcolor, 
+                fieldsToUpdate.positionLeft, 
+                fieldsToUpdate.positionTop,
+                user_id
+            )
+        }else{
+       
+        await noteModel.updateNote(id, fieldsToUpdate);
+        }
         const request = (await pool).request();
         request.input("noteId", sql.NVarChar, id);
-        // const noteResult = await request.query(`SELECT * FROM Notes WHERE id = @noteId`);
-        
-        // if (noteResult.recordset.length === 0) {
-        //     return res.status(404).json({ message: 'Note not found' });
-        // }
-        
-        // Update only the fields that need to be synced based on syncOperations
-        if(syncOperations.includes('create')){
-            await noteModel.postNote(id, title, content, cardcolor, textcolor, positionLeft ,positionTop, user_id);
-        }
 
-        if (syncOperations.includes('title')) {
-            await noteModel.updateNoteTitle(title, id);
-        }
-        
-        if (syncOperations.includes('content')) {
-            await noteModel.updateNoteContent(content, id);
-        }
-        
-        if (syncOperations.includes('position')) {
-            await noteModel.updateNotePosition(positionLeft, positionTop, id);
-        }
-
-        if (syncOperations.includes('delete')) {
-            await noteModel.updateDeletedNote(id);
-        }
-        
         // Get the updated note to return in the response
         const updatedNoteResult = await request.query(`SELECT * FROM Notes WHERE id = @noteId`);
         

@@ -95,6 +95,34 @@ function getUnsyncedNotes(){
     })
 }
 
+function getExistingNotesIDB(){
+    return new Promise((resolve, reject)=>{
+        const transaction = db.transaction([NOTES_STORE], 'readonly');
+        const store = transaction.objectStore(NOTES_STORE);
+        const existingNotes = [];
+
+        const request = store.openCursor();
+
+        request.onsuccess = (event)=>{
+            const cursor = event.target.result;
+            
+            if(cursor){
+                const note = cursor.value;
+                if(note.deletedAt===null){
+                    existingNotes.push(note);
+                }
+                cursor.continue();
+            }else{
+                resolve(existingNotes);
+            }
+        }
+        request.onerror = (event) =>{
+            console.error('Error while getting unsynced notes:', event);
+            reject(event);
+        }
+    })
+}
+
 // Delete a note from the database
 function deleteNote(id) {
     return new Promise((resolve, reject) => {

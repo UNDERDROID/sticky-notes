@@ -26,13 +26,15 @@ let isOnline = navigator.onLine;
 
 
 // Initialize the application
-async function initApp() {
+async function initApp(){
     try {
         const accessToken = localStorage.getItem('accessToken');
 
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);
 
+            // await getNotesFromIDB();
+        
 
         if(!accessToken){
             window.location.href='login.html';
@@ -42,12 +44,6 @@ async function initApp() {
         
         // Load saved notes
         await loadNotes();
-
-        // await getUnsyncedNotes().then(notes => {
-        //     console.log("Unsynced Notes:", notes);
-        // }).catch(err => {
-        //     console.error("Error fetching unsynced notes", err);
-        // });
 
         setupPreviewNote();
         $('.validation-icon-title-validation').hide();
@@ -70,17 +66,26 @@ async function initApp() {
     }
 }
 
-function handleOffline() {
+async function handleOffline(){
     isOnline = false;
     console.log('Application is offline. Changes will be synced when online.');
     showToast('Connection Lost', 'error');
+    setupPreviewNote();
 }
 
-function handleOnline() {
+function handleOnline(){
     isOnline = true;
     console.log('Application is back online. Syncing changes...');
     showToast('<i class="fa-solid fa-wifi" style="margin-right: 8px;"></i> Back Online', 's');
     syncPendingNotes();
+}
+
+async function getNotesFromIDB(){
+    const existingNotes = await getExistingNotesIDB();
+    console.log("Existing Notes:", existingNotes)
+    existingNotes.forEach((note)=>{
+        renderNote(note);
+    })
 }
 
 async function fetchWithAuth(url, options = {}){
@@ -161,6 +166,10 @@ $('#logoutBtn').click(function () {
 
 async function loadNotes() {
     try{
+
+        if(!navigator.onLine){
+            await getNotesFromIDB();
+        }
         const accessToken = localStorage.getItem('accessToken');
         const response = await fetchWithAuth(GET_NOTES_URL);
         
@@ -337,11 +346,17 @@ async function addNewNote(note){
         const noteIndex = notes.findIndex(note => note.id === noteData.id);
 
         if(!navigator.onLine){
-                if(!notes[noteIndex].syncOperations){
-                    notes[noteIndex].syncOperations=[];
+                if(!notes[noteIndex].pendingUpdateData){
+                    notes[noteIndex].pendingUpdateData={};
                 }
-                if(!notes[noteIndex].syncOperations.includes('create')){
-                    notes[noteIndex].syncOperations.push('create');
+                notes[noteIndex].pendingUpdateData={
+                    id: id,
+                    title: note.title,
+                    content: note.content,
+                    positionLeft: Math.random() * (90 - 5) + 5,
+                    positionTop: Math.random() * (90 - 5) + 5,
+                    cardcolor: note.cardcolor,
+                    textcolor: note.textcolor,
                 }
                 await saveNote(notes[noteIndex]);
         }
@@ -371,8 +386,6 @@ function getLatestDate(date1, date2){
 
     return d1.getTime() > d2.getTime();
 }
-
-
 
 // Improved mobile textarea interaction
 $('body').on('touchstart', 'textarea', function(e) {
@@ -471,12 +484,12 @@ function renderNote(note){
 
         if(!navigator.onLine){
             notes[noteIndex].isSynced=false;
-            if(!notes[noteIndex].syncOperations){
-            notes[noteIndex].syncOperations=[];
+            if(!notes[noteIndex].pendingUpdateData){
+            notes[noteIndex].pendingUpdateData={};
             }
-            if (!notes[noteIndex].syncOperations.includes('title')) {
-                notes[noteIndex].syncOperations.push('title');
-                console.log("notes:", notes);
+            notes[noteIndex].pendingUpdateData={
+                ...notes[noteIndex].pendingUpdateData,
+                title: newTitle
             }
         }
 
@@ -490,7 +503,7 @@ function renderNote(note){
         saveNote(notes[noteIndex]);
 
         const response = await fetch(`${UPDATE_TITLE_URL}/${id}`, {
-            method: 'PUT',
+            method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -518,11 +531,12 @@ if(noteIndex!==-1){
 
     if(!navigator.onLine){
         notes[noteIndex].isSynced=false;
-        if(!notes[noteIndex].syncOperations){
-            notes[noteIndex].syncOperations=[];
+        if(!notes[noteIndex].pendingUpdateData){
+            notes[noteIndex].pendingUpdateData={};
         }
-        if(!notes[noteIndex].syncOperations.includes('content')){
-            notes[noteIndex].syncOperations.push('content');
+        notes[noteIndex].pendingUpdateData={
+            ...notes[noteIndex].pendingUpdateData,
+            content: newContent
         }
     }
 
@@ -537,7 +551,7 @@ if(noteIndex!==-1){
             saveNote(notes[noteIndex]);
 
             const response = await fetch(`${UPDATE_CONTENT_URL}/${id}`, {
-                method: 'PUT',
+                method: 'PATCH',
                 headers: {
                     'Content-type': 'application/json'
                 },
@@ -570,11 +584,13 @@ if(noteIndex!==-1){
 
     if(!navigator.onLine){
         notes[noteIndex].isSynced=false;
-        if(!notes[noteIndex].syncOperations){
-            notes[noteIndex].syncOperations=[]
+        if(!notes[noteIndex].pendingUpdateData){
+            notes[noteIndex].pendingUpdateData={}
         }
-        if(!notes[noteIndex].syncOperations.includes('position')){
-            notes[noteIndex].syncOperations.push('position');
+        notes[noteIndex].pendingUpdateData={
+            ...notes[noteIndex].pendingUpdateData,
+            positionLeft: leftPercent,
+            positionTop: topPercent
         }
     }
 
@@ -586,7 +602,7 @@ if(noteIndex!==-1){
         try{
             saveNote(notes[noteIndex]);
     const response = await fetch(`${UPDATE_POSITION_URL}/${id}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
             'Content-type': 'application/json'
         },
@@ -612,12 +628,14 @@ try{
     if(noteIndex !== -1){
         notes[noteIndex].isDeleted=true;
         if(!navigator.onLine){
+            console.log("Offline: Remove data")
                 notes[noteIndex].isSynced=false;
-                if(!notes[noteIndex].syncOperations){
-                    notes[noteIndex].syncOperations=[]
+                if(!notes[noteIndex].pendingUpdateData){
+                    notes[noteIndex].pendingUpdateData={}
                 }
-                if(!notes[noteIndex].syncOperations.includes('delete')){
-                    notes[noteIndex].syncOperations.push('delete');
+                notes[noteIndex].pendingUpdateData={
+                    ...notes[noteIndex].pendingUpdateData,
+                    deletedAt: new Date(Date.now())
                 }
             
         }
@@ -630,7 +648,7 @@ try{
         }
         
  const response = await fetch(`${DELETE_NOTE_URL}/${id}`,{
-    method: 'PUT'
+    method: 'PATCH'
  });
  if(!response.ok) throw new Error('Failed to delete note')
 
@@ -681,27 +699,21 @@ async function syncPendingNotes(){
 }
 
 async function syncNoteToServer(note){
-    if (!note.syncOperations || note.syncOperations.length === 0 || !isOnline) {
+    if (!note.pendingUpdateData || note.pendingUpdateData.length === 0 || !isOnline) {
         console.log("Not synced because offline");
         return;
     }
 
     try {
+
         const response = await fetchWithAuth(`${SYNC_NOTES_URL}`, {
-            method: 'POST',
+            method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
                 id: note.id,
-                title: note.title,
-                content: note.content,
-                cardcolor: note.cardcolor,
-                textcolor: note.textcolor,
-                positionLeft: note.positionLeft,
-                positionTop: note.positionTop,
-                user_id: note.user_id,
-                syncOperations: note.syncOperations
+               ...note.pendingUpdateData
             })
         });
         
@@ -718,6 +730,7 @@ async function syncNoteToServer(note){
         }
         
         console.log(`Note ${note.id} synced successfully`);
+        notes[noteIndex].pendingUpdateData={};
         return await response.json();
     } catch (error) {
         console.error('Error syncing note:', error);

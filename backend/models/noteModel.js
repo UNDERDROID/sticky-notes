@@ -25,6 +25,37 @@ async function postNote(id, title, content, card_color, text_color, positionLeft
         `)
 }
 
+async function updateNote(id, fieldsToUpdate) {
+   if(!id || Object.keys(fieldsToUpdate).length === 0){
+    throw new Error('Note ID and at least one field are required to update');
+   }
+   
+    const request = (await pool).request();
+    request.input('noteId', sql.NVarChar, id);
+    request.input('updatedAt', sql.DateTime, new Date());
+
+    let query = 'UPDATE NOTES SET ';
+    const setClauses = [];
+
+    for (const [key, value] of Object.entries(fieldsToUpdate)){
+        const paramName = `field_${key}`;
+        setClauses.push(`${key}=@${paramName}`);
+        request.input(paramName, getSQLType(value), value);
+    }
+
+    query += setClauses.join(', ') + ', updatedAt = @updatedAt WHERE id = @noteId';
+
+    return request.query(query);
+}
+
+function getSQLType(value) {
+    if (typeof value === 'string') return sql.NVarChar;
+    if (typeof value === 'number') return sql.Float;
+    if (typeof value === 'boolean') return sql.Bit;
+    if (value instanceof Date) return sql.DateTime;
+    return sql.NVarChar; 
+}
+
 async function updateNoteTitle(noteTitle, id){
     const request = (await pool).request();
     request.input("noteTitle", sql.NVarChar, noteTitle);
@@ -80,6 +111,7 @@ async function updateDeletedNote(noteId){
 module.exports = {
     getNotesByUser,
     postNote,
+    updateNote,
     updateNoteTitle,
     updateNoteContent,
     updateNotePosition,
